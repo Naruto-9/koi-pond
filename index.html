@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071f22" />
+    <title>Koi Garden</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Italiana&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <canvas id="pond" aria-label="An animated pond of swimming koi"></canvas>
+
+    <header class="masthead">
+      <a class="brand" href="#" aria-label="Koi Garden home">
+        <span class="brand-mark">水</span>
+        <span>KOI GARDEN</span>
+      </a>
+      <button class="round-button" id="soundButton" aria-label="Toggle pond sounds" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h4l5 4V6L8 10H4v4Zm12.5-5.2a5 5 0 0 1 0 6.4M19 6a9 9 0 0 1 0 12"/></svg>
+      </button>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow"><span></span> A MOMENT OF STILLNESS</p>
+        <h1>Let the water<br /><em>quiet your mind.</em></h1>
+        <p class="intro">An interactive koi pond for a gentler pace.<br />Move slowly. Stay awhile.</p>
+      </section>
+
+      <aside class="pond-card" aria-label="Pond controls">
+        <div class="card-icon">◌</div>
+        <div>
+          <p class="card-label">KOI POPULATION</p>
+          <p class="card-text">Tap the water to feed them</p>
+        </div>
+        <div class="koi-stepper">
+          <button id="removeFish" class="step-button" aria-label="Remove one koi">−</button>
+          <output id="fishCount" aria-live="polite">10</output>
+          <button id="addFish" class="step-button" aria-label="Add one koi">+</button>
+        </div>
+        <input id="fishRange" class="fish-range" type="range" min="1" max="20" value="10" aria-label="Number of koi in the pond" />
+        <button class="water-toggle" id="waterMotionButton" type="button" aria-pressed="true">
+          <span>WATER MOTION</span><i aria-hidden="true"></i>
+        </button>
+        <button class="water-toggle" id="waterColorButton" type="button" aria-pressed="false">
+          <span>GREEN WATER</span><i aria-hidden="true"></i>
+        </button>
+        <button class="water-toggle" id="waveContrastButton" type="button" aria-pressed="false">
+          <span>WAVE CONTRAST</span><i aria-hidden="true"></i>
+        </button>
+        <button class="creature-button" id="creatureButton" type="button">
+          <span>CREATURES</span><span aria-hidden="true">•••</span>
+        </button>
+        <button class="character-toggle" id="characterToggle" type="button" aria-label="Switch to boy character">
+          <span>CHARACTER</span><strong>GIRL</strong>
+        </button>
+      </aside>
+    </main>
+
+    <dialog class="creature-dialog" id="creatureDialog" aria-labelledby="creatureDialogTitle">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div><p class="card-label">POND LIFE</p><h2 id="creatureDialogTitle">Visible creatures</h2></div>
+          <button class="dialog-close" value="close" aria-label="Close creature selector">×</button>
+        </div>
+        <label class="creature-option"><span><strong>Koi</strong><small>Swimming fish and their shadows</small></span><input type="checkbox" data-creature="koi" checked /><i></i></label>
+        <label class="creature-option"><span><strong>Turtles</strong><small>Adult and juvenile pond turtles</small></span><input type="checkbox" data-creature="turtles" checked /><i></i></label>
+        <label class="creature-option"><span><strong>Frogs</strong><small>Resting and hopping pond frogs</small></span><input type="checkbox" data-creature="frogs" checked /><i></i></label>
+        <label class="creature-option"><span><strong>Dragonflies</strong><small>Hovering visitors above the water</small></span><input type="checkbox" data-creature="dragonflies" checked /><i></i></label>
+        <button class="dialog-done" value="close">DONE</button>
+      </form>
+    </dialog>
+
+    <aside class="creature-info" id="creatureInfo" hidden aria-live="polite">
+      <button class="info-close" id="creatureInfoClose" aria-label="Close creature information">×</button>
+      <p class="card-label" id="creatureInfoType">POND CREATURE</p>
+      <h2 id="creatureInfoName">Koi</h2>
+      <p id="creatureInfoText"></p>
+    </aside>
+
+    <div class="hint" id="hint">
+      <span class="mouse"><i></i></span>
+      <span>TOUCH THE WATER</span>
+    </div>
+    <div class="pond-watcher" data-character="girl" aria-label="A girl sitting beside the koi pond and drinking bubble tea">
+      <span class="watcher-shadow" aria-hidden="true"></span>
+      <span class="watcher-sprite" aria-hidden="true">
+        <i class="watcher-frame frame-1 is-active"></i>
+        <i class="watcher-frame frame-2"></i>
+        <i class="watcher-frame frame-3"></i>
+        <i class="watcher-frame frame-4"></i>
+        <i class="watcher-frame frame-5"></i>
+        <i class="watcher-frame frame-6"></i>
+      </span>
+      <span class="watcher-grass" aria-hidden="true"></span>
+    </div>
+    <div class="grain"></div>
+
+    <script type="module" src="/pond.js"></script>
+  </body>
+</html>
