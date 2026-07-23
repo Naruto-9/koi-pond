@@ -81,8 +81,8 @@ h1 em { color: #b7ae8c; font-weight: 400; }
 .pond-watcher { position:fixed; z-index:3; left:-12px; bottom:-8px; width:clamp(190px,20vw,300px); aspect-ratio:1; pointer-events:none; user-select:none; transform-origin:50% 92%; animation:watcher-presence 5.8s ease-in-out infinite; }
 .pond-watcher.is-sipping { animation-play-state:paused; }
 .watcher-sprite { position:absolute; z-index:2; inset:0; filter:sepia(.07) saturate(.84) brightness(.94) contrast(.97) drop-shadow(0 10px 13px rgba(39,25,17,.18)); }
-.watcher-frame { position:absolute; inset:0; display:block; opacity:0; background-image:url("./assets-used/pond-boy-sip-sheet-aligned.png"); background-repeat:no-repeat; background-size:300% 200%; transition:opacity var(--pose-fade,100ms) cubic-bezier(.22,.7,.25,1); will-change:opacity,transform; transform-origin:50% 88%; }
-.pond-watcher[data-character="girl"] .watcher-frame { background-image:url("./assets-used/pond-girl-sip-sheet-aligned.png"); }
+.watcher-frame { position:absolute; inset:0; display:block; opacity:0; background-image:url("./assets/pond-boy-sip-sheet-aligned.png"); background-repeat:no-repeat; background-size:300% 200%; transition:opacity var(--pose-fade,100ms) cubic-bezier(.22,.7,.25,1); will-change:opacity,transform; transform-origin:50% 88%; }
+.pond-watcher[data-character="girl"] .watcher-frame { background-image:url("./assets/pond-girl-sip-sheet-aligned.png"); }
 .watcher-frame.is-active { opacity:1; }
 .frame-1 { background-position:0 0; transform:translateY(0); }
 .frame-2 { background-position:50% 0; transform:translateY(-1px) rotate(-.15deg); }

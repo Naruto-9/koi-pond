@@ -186,10 +186,21 @@ let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
 let audioOn = false, audioCtx;
 const koiBreeds=['kohaku','sanke','showa','ogon','shiro-utsuri','hi-utsuri','ki-utsuri','bekko','asagi','shusui','tancho','goshiki','goromo','ochiba','chagoi','soragoi','platinum-ogon','kujaku','matsuba','hariwake'];
-const bundledAssets=import.meta.glob('./assets-used/*',{eager:true,query:'?url',import:'default'});
+const bundledAssets=import.meta.glob([
+  './assets/koi-*-cropped.png',
+  './assets/pebble-[1-6].png',
+  './assets/pellet-[1-9].png',
+  './assets/pellet-1[0-2].png',
+  './assets/dragonfly.png',
+  './assets/frog-cropped.png',
+  './assets/turtle-cropped.png',
+  './assets/pond-water.png',
+  './assets/lotus-flower-cropped.png',
+  './assets/lotus-leaf-cropped.png'
+],{eager:true,query:'?url',import:'default'});
 startupLog('Vite asset manifest ready',{entries:Object.keys(bundledAssets).length});
 const assetPath=name=>{
-  const url=bundledAssets[`./assets-used/${name}`];
+  const url=bundledAssets[`./assets/${name}`];
   if(!url)throw new Error(`Asset is missing from the Vite bundle: ${name}`);
   return url;
 };
