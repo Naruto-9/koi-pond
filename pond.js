@@ -4,6 +4,7 @@ import {
   WebGLRenderer, CanvasRenderer
 } from 'pixi.js';
 import 'pixi.js/browser';
+import gardenMusicUrl from './assets/koi-pond-music.mp3';
 
 const startupStartedAt=performance.now();
 let startupStep=0;
@@ -47,14 +48,15 @@ window.addEventListener('unhandledrejection',event=>showStartupError(event.reaso
 
 let canvas = document.querySelector('#pond');
 let app = new Application();
+const useMobilePond=matchMedia('(max-width:700px) and (orientation:portrait)').matches;
 startupLog('Canvas located',{found:Boolean(canvas),size:[innerWidth,innerHeight]});
 const rendererOptions={
   canvas,
   resizeTo:window,
   antialias:true,
   autoDensity:true,
-  resolution:Math.min(devicePixelRatio||1,1.5),
-  background:'#071f22',
+  resolution:devicePixelRatio||1,
+  backgroundAlpha:0,
   preferWebGLVersion:1,
   failIfMajorPerformanceCaveat:false,
   // The browser environment is imported statically above. Skipping Pixi's
@@ -86,7 +88,7 @@ try {
   app=new Application();
   try{
     await withStartupTimeout(
-      app.init({...rendererOptions,canvas,preference:'canvas',resolution:1,antialias:false}),
+      app.init({...rendererOptions,canvas,preference:'canvas',antialias:false}),
       'Canvas renderer',
       6000
     );
@@ -140,6 +142,7 @@ const pondOutlineNormalized=[
 // retain their watery softness instead of becoming grey cut-outs.
 function environmentGrade(strength=1){
   const f=new ColorMatrixFilter();
+  f.resolution='inherit';
   const s=strength;
   f.matrix=[
     1-.13*s,.09*s,.05*s,0,.018*s,
@@ -166,6 +169,8 @@ waterLayer.addChild(displacementMap);
 const fishRefraction=isCanvasRenderer?null:new DisplacementFilter({sprite:displacementMap,scale:{x:5.8,y:4.1}});
 const animalRefraction=isCanvasRenderer?null:new DisplacementFilter({sprite:displacementMap,scale:{x:3.4,y:2.5}});
 if(!isCanvasRenderer){
+  fishRefraction.resolution='inherit';
+  animalRefraction.resolution='inherit';
   shorelineLayer.filters=[environmentGrade(.82)];
   floatingLayer.filters=[environmentGrade(.82)];
   decorLayer.filters=[animalRefraction,environmentGrade(.82)];
@@ -184,7 +189,28 @@ let lastWakeAt=0,nextWindAt=performance.now()+7000+Math.random()*7000,windUntil=
 const creatureVisibility={koi:true,turtles:true,frogs:true,dragonflies:true};
 let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
-let audioOn = false, audioCtx;
+let audioOn=true,userVolume=.78;
+const gardenMusic=new Audio(gardenMusicUrl);
+gardenMusic.loop=true;
+gardenMusic.preload='auto';
+gardenMusic.volume=userVolume;
+gardenMusic.autoplay=true;
+gardenMusic.playsInline=true;
+function removeEarlyAudioUnlock(){
+  window.removeEventListener('pointerdown',earlyAudioUnlock,true);
+  window.removeEventListener('touchstart',earlyAudioUnlock,true);
+  window.removeEventListener('keydown',earlyAudioUnlock,true);
+}
+function earlyAudioUnlock(event){
+  if(event?.target?.closest?.('#soundButton'))return;
+  if(!audioOn||!gardenMusic.paused){removeEarlyAudioUnlock();return;}
+  gardenMusic.play().then(removeEarlyAudioUnlock).catch(()=>{});
+}
+// Register before pond assets load so an early tap is not lost while the
+// renderer and high-resolution artwork are still initializing.
+window.addEventListener('pointerdown',earlyAudioUnlock,{capture:true,passive:true});
+window.addEventListener('touchstart',earlyAudioUnlock,{capture:true,passive:true});
+window.addEventListener('keydown',earlyAudioUnlock,{capture:true});
 const koiBreeds=['kohaku','sanke','showa','ogon','shiro-utsuri','hi-utsuri','ki-utsuri','bekko','asagi','shusui','tancho','goshiki','goromo','ochiba','chagoi','soragoi','platinum-ogon','kujaku','matsuba','hariwake'];
 const bundledAssets=import.meta.glob([
   './assets/koi-*-cropped.png',
@@ -195,6 +221,7 @@ const bundledAssets=import.meta.glob([
   './assets/frog-cropped.png',
   './assets/turtle-cropped.png',
   './assets/pond-water.png',
+  './assets/pond-water-mobile.png',
   './assets/lotus-flower-cropped.png',
   './assets/lotus-leaf-cropped.png'
 ],{eager:true,query:'?url',import:'default'});
@@ -211,16 +238,6 @@ async function loadPondAsset(name){
   startupLog(`Loaded asset: ${name}`,{width:texture.width,height:texture.height});
   return texture;
 }
-const koiTextures = await Promise.all(koiBreeds.map(name=>loadPondAsset(`koi-${name}-cropped.png`)));
-startupLog('All koi textures loaded',{count:koiTextures.length});
-const frogTexture = await loadPondAsset('frog-cropped.png');
-const turtleTexture = await loadPondAsset('turtle-cropped.png');
-const pondWaterTexture = await loadPondAsset('pond-water.png');
-const lotusFlowerTexture = await loadPondAsset('lotus-flower-cropped.png');
-const lotusLeafTexture = await loadPondAsset('lotus-leaf-cropped.png');
-const pebbleTextures = await Promise.all([1,2,3,4,5,6].map(i=>loadPondAsset(`pebble-${i}.png`)));
-const dragonflyTexture=await loadPondAsset('dragonfly.png');
-
 function makePelletTexture(variant=0){
   const c=document.createElement('canvas');c.width=24;c.height=24;const p=c.getContext('2d');
   p.translate(12,12);p.rotate((variant-1)*.25);
@@ -230,8 +247,49 @@ function makePelletTexture(variant=0){
   p.fillStyle='rgba(35,23,12,.4)';for(let i=0;i<4;i++){p.beginPath();p.arc(-4+Math.random()*9,-3+Math.random()*7,.45,0,7);p.fill()}
   return Texture.from(c);
 }
-const pelletTextures=await Promise.all(Array.from({length:12},(_,i)=>loadPondAsset(`pellet-${i+1}.png`)));
-startupLog('All pond textures loaded',{koi:koiTextures.length,pebbles:pebbleTextures.length,pellets:pelletTextures.length});
+startupLog('Loading critical pond textures in parallel');
+const pondBackgroundAsset=useMobilePond?'pond-water-mobile.png':'pond-water.png';
+const mobileContentScale=useMobilePond?.5:1;
+const [
+  koiTextures,
+  frogTexture,
+  turtleTexture,
+  pondWaterTexture,
+  lotusFlowerTexture,
+  lotusLeafTexture,
+  pebbleTextures,
+  dragonflyTexture,
+  pelletTextures
+]=await Promise.all([
+  Promise.all(koiBreeds.slice(0,10).map(name=>loadPondAsset(`koi-${name}-cropped.png`))),
+  loadPondAsset('frog-cropped.png'),
+  loadPondAsset('turtle-cropped.png'),
+  loadPondAsset(pondBackgroundAsset),
+  loadPondAsset('lotus-flower-cropped.png'),
+  loadPondAsset('lotus-leaf-cropped.png'),
+  Promise.all([1,2,3,4,5,6].map(i=>loadPondAsset(`pebble-${i}.png`))),
+  loadPondAsset('dragonfly.png'),
+  Promise.all(Array.from({length:12},(_,i)=>loadPondAsset(`pellet-${i+1}.png`)))
+]);
+startupLog('Critical pond textures loaded',{koi:koiTextures.length,pebbles:pebbleTextures.length,pellets:pelletTextures.length});
+let deferredKoiLoadStarted=false;
+async function loadDeferredKoiTextures(){
+  if(deferredKoiLoadStarted||koiTextures.length>=koiBreeds.length)return;
+  deferredKoiLoadStarted=true;
+  startupLog('Loading deferred koi textures');
+  // Decode one optional breed per idle slice. A parallel batch caused a
+  // noticeable main-thread hitch just after the pond became interactive.
+  const remainingBreeds=koiBreeds.slice(koiTextures.length);
+  const yieldToBrowser=()=>new Promise(resolve=>{
+    const schedule=window.requestIdleCallback||((callback)=>setTimeout(callback,80));
+    schedule(resolve,{timeout:500});
+  });
+  for(const name of remainingBreeds){
+    await yieldToBrowser();
+    koiTextures.push(await loadPondAsset(`koi-${name}-cropped.png`));
+  }
+  startupLog('Deferred koi textures loaded',{count:koiTextures.length});
+}
 const turtles=[],frogs=[],floaters=[],dragonflies=[];
 
 function makeDragonfly(){
@@ -280,7 +338,8 @@ waterLayer.addChild(water);
 // height-field. Disturbances exchange energy instead of playing canned rings.
 const refractedWater=new Sprite(pondWaterTexture);refractedWater.anchor.set(.5);
 refractedWaterLayer.addChild(refractedWater);
-const rippleMapCanvas=document.createElement('canvas');rippleMapCanvas.width=160;rippleMapCanvas.height=100;
+
+const rippleMapCanvas=document.createElement('canvas');rippleMapCanvas.width=144;rippleMapCanvas.height=90;
 const rippleMapContext=rippleMapCanvas.getContext('2d');
 const rippleMapTexture=Texture.from(rippleMapCanvas);
 const waterShadeCanvas=document.createElement('canvas');waterShadeCanvas.width=rippleMapCanvas.width;waterShadeCanvas.height=rippleMapCanvas.height;
@@ -289,7 +348,10 @@ const waterShadeSprite=new Sprite(waterShadeTexture);waterShadeSprite.alpha=.46;
 const rippleMapSprite=new Sprite(rippleMapTexture);rippleMapSprite.alpha=0;
 rippleMapSprite.width=app.screen.width;rippleMapSprite.height=app.screen.height;app.stage.addChild(rippleMapSprite);
 const radialRefraction=isCanvasRenderer?null:new DisplacementFilter({sprite:rippleMapSprite,scale:{x:58,y:48}});
-if(!isCanvasRenderer)refractedWater.filters=[radialRefraction];
+if(!isCanvasRenderer){
+  radialRefraction.resolution='inherit';
+  refractedWater.filters=[radialRefraction];
+}
 const waterCells=rippleMapCanvas.width*rippleMapCanvas.height;
 let waterHeight=new Float32Array(waterCells),waterPrevious=new Float32Array(waterCells),waterNext=new Float32Array(waterCells);
 const waterDamping=new Float32Array(waterCells);
@@ -354,52 +416,66 @@ function buildPondDecor(){
   aerialLayer.removeChildren().forEach(child=>child.destroy());
   const w=app.screen.width,h=app.screen.height;
   // Banks are assembled from independent stones, avoiding repeated stamped clusters.
-  [[.20,.58,72,34,-.08],[.61,.80,95,28,.05],[.80,.43,42,72,1.48],[.39,.19,82,25,.02]].forEach((bed,bankIndex)=>{
+  const pebbleBeds=useMobilePond
+    ? [[.28,.58,40,20,-.08],[.58,.76,52,17,.05],[.73,.43,24,40,1.48],[.40,.24,45,15,.02]]
+    : [[.20,.58,72,34,-.08],[.61,.80,95,28,.05],[.80,.43,42,72,1.48],[.39,.19,82,25,.02]];
+  pebbleBeds.forEach((bed,bankIndex)=>{
     const bank=new Container();bank.position.set(bed[0]*w,bed[1]*h);bank.rotation=bed[4];
     for(let i=0;i<10;i++){
       const stone=new Sprite(pebbleTextures[(i+bankIndex*2)%pebbleTextures.length]);stone.anchor.set(.5);
-      const size=15+Math.random()*18;stone.width=size;stone.height=size*(stone.texture.height/stone.texture.width);
+      const size=(15+Math.random()*18)*mobileContentScale;stone.width=size;stone.height=size*(stone.texture.height/stone.texture.width);
       stone.position.set((Math.random()-.5)*bed[2]*2,(Math.random()-.5)*bed[3]*2);stone.rotation=Math.random()*Math.PI;stone.alpha=.48+Math.random()*.18;bank.addChild(stone);
     }
     shorelineLayer.addChild(bank);
   });
 
   // Leaves and flowers are independently composed and can move without one another.
-  [[.70,.27,42,3],[.76,.64,32,2],[.54,.21,27,2]].forEach((group,j)=>{
+  const lotusGroups=useMobilePond?[[.68,.27,42,3],[.69,.62,32,2],[.54,.24,27,2]]:[[.70,.27,42,3],[.76,.64,32,2],[.54,.21,27,2]];
+  lotusGroups.forEach((group,j)=>{
     for(let i=0;i<group[3];i++){
-      const leaf=new Sprite(lotusLeafTexture);leaf.anchor.set(.5);const size=group[2]*(.82+Math.random()*.38);
+      const leaf=new Sprite(lotusLeafTexture);leaf.anchor.set(.5);const size=group[2]*(.82+Math.random()*.38)*mobileContentScale;
       leaf.width=size*2;leaf.height=size*2*(lotusLeafTexture.height/lotusLeafTexture.width);
       const offset=(i-(group[3]-1)/2)*size*1.9;
-      leaf.position.set(group[0]*w+offset,group[1]*h+(i%2-.5)*size*.72);leaf.rotation=j*.8+i*1.45;leaf.alpha=.72+Math.random()*.16;floatingLayer.addChild(leaf);
+      leaf.position.set(group[0]*w+offset,group[1]*h+(i%2-.5)*size*.72);
+      if(useMobilePond){const safe=constrainToPond(leaf.x,leaf.y,Math.max(leaf.width,leaf.height)*.56+4);leaf.position.set(safe.x,safe.y);}
+      leaf.rotation=j*.8+i*1.45;leaf.alpha=.72+Math.random()*.16;floatingLayer.addChild(leaf);
       floaters.push({view:leaf,baseY:leaf.y,baseRotation:leaf.rotation,phase:j*1.8+i*.9,amount:1.2+Math.random()*.8});
     }
-    const flower=new Sprite(lotusFlowerTexture);flower.anchor.set(.5);flower.width=group[2]*1.08;flower.height=group[2]*1.08*(lotusFlowerTexture.height/lotusFlowerTexture.width);
-    flower.position.set(group[0]*w+group[2]*.2,group[1]*h-group[2]*.08);flower.rotation=j*.55;flower.alpha=.94;floatingLayer.addChild(flower);
+    const flowerSize=group[2]*1.08*mobileContentScale;
+    const flower=new Sprite(lotusFlowerTexture);flower.anchor.set(.5);flower.width=flowerSize;flower.height=flowerSize*(lotusFlowerTexture.height/lotusFlowerTexture.width);
+    flower.position.set(group[0]*w+group[2]*mobileContentScale*.2,group[1]*h-group[2]*mobileContentScale*.08);
+    if(useMobilePond){const safe=constrainToPond(flower.x,flower.y,Math.max(flower.width,flower.height)*.56+4);flower.position.set(safe.x,safe.y);}
+    flower.rotation=j*.55;flower.alpha=.94;floatingLayer.addChild(flower);
     floaters.push({view:flower,baseY:flower.y,baseRotation:flower.rotation,phase:j*2.1+.5,amount:.75});
   });
 
   // A single resting frog beside the pebble bank gives the pond life without crowding the koi.
-  const frogLeaf=new Sprite(lotusLeafTexture);frogLeaf.anchor.set(.5);frogLeaf.width=82;frogLeaf.height=82*(lotusLeafTexture.height/lotusLeafTexture.width);frogLeaf.position.set(w*.25,h*.68);frogLeaf.rotation=-.5;frogLeaf.alpha=.8;floatingLayer.addChild(frogLeaf);
-  const frog=new Sprite(frogTexture);frog.anchor.set(.5);frog.width=48;frog.height=73;frog.position.set(w*.25,h*.68);frog.rotation=-.35;frog.alpha=.92;floatingLayer.addChild(frog);
+  const frogX=useMobilePond?.32:.25,frogY=useMobilePond?.64:.68;
+  const frogLeaf=new Sprite(lotusLeafTexture);frogLeaf.anchor.set(.5);frogLeaf.width=82*mobileContentScale;frogLeaf.height=82*mobileContentScale*(lotusLeafTexture.height/lotusLeafTexture.width);frogLeaf.position.set(w*frogX,h*frogY);
+  if(useMobilePond){const safe=constrainToPond(frogLeaf.x,frogLeaf.y,Math.max(frogLeaf.width,frogLeaf.height)*.56+4);frogLeaf.position.set(safe.x,safe.y);}
+  frogLeaf.rotation=-.5;frogLeaf.alpha=.8;floatingLayer.addChild(frogLeaf);
+  const frog=new Sprite(frogTexture);frog.anchor.set(.5);frog.width=48*mobileContentScale;frog.height=73*mobileContentScale;frog.position.copyFrom(frogLeaf.position);frog.rotation=-.35;frog.alpha=.92;floatingLayer.addChild(frog);
   frog.eventMode='static';frog.cursor='pointer';frog.on('pointertap',()=>focusCreature({kind:'frogs',view:frog,name:'Pond Frog',type:'AMPHIBIAN',text:'Pond frogs divide their time between floating vegetation and the water. Their stillness, sudden hops, and sensitive skin make them excellent indicators of a healthy pond habitat.'}));
   frogs.push({view:frog,homeX:frog.x,homeY:frog.y,fromX:frog.x,fromY:frog.y,toX:frog.x,toY:frog.y,phase:Math.random()*6,mode:'rest',timer:240+Math.random()*420,progress:0,duration:32,baseScaleX:frog.scale.x,baseScaleY:frog.scale.y});
 
   // An adult and juvenile turtle drift independently through quieter areas.
-  [[.19,.2,62,.42],[.86,.48,44,-.8]].forEach((data,i)=>{
+  const turtleLayout=useMobilePond?[[.28,.25,62,.42],[.74,.48,44,-.8]]:[[.19,.2,62,.42],[.86,.48,44,-.8]];
+  turtleLayout.forEach((data,i)=>{
     const turtle=new Container();turtle.position.set(data[0]*w,data[1]*h);turtle.rotation=data[3];turtle.alpha=.78+i*.08;
     turtle.eventMode='static';turtle.cursor='pointer';turtle.on('pointertap',()=>focusCreature({kind:'turtles',view:turtle,name:i?'Juvenile Pond Turtle':'Pond Turtle',type:'REPTILE',text:i?'A young pond turtle uses its broad feet to paddle between sheltered areas, surfacing periodically to breathe and warm itself.':'Pond turtles are patient swimmers that alternate between slow underwater exploration and quiet periods near warm, sheltered edges.'}));
-    const mesh=isCanvasRenderer?new Sprite(turtleTexture):new MeshPlane({texture:turtleTexture,verticesX:7,verticesY:9});const scale=data[2]/turtleTexture.width;
-    mesh.scale.set(scale);mesh.position.set(-data[2]/2,-turtleTexture.height*scale/2);turtle.addChild(mesh);decorLayer.addChild(turtle);
+    const turtleSize=data[2]*mobileContentScale;
+    const mesh=isCanvasRenderer?new Sprite(turtleTexture):new MeshPlane({texture:turtleTexture,verticesX:7,verticesY:9});const scale=turtleSize/turtleTexture.width;
+    mesh.scale.set(scale);mesh.position.set(-turtleSize/2,-turtleTexture.height*scale/2);turtle.addChild(mesh);decorLayer.addChild(turtle);
     const buffer=isCanvasRenderer?null:mesh.geometry.getAttribute('aPosition').buffer;
     turtles.push({view:turtle,mesh,buffer,rest:buffer?new Float32Array(buffer.data):null,heading:turtle.rotation-Math.PI/2,speed:i ? .055 : .038,phase:i*2.8+Math.random(),turnSeed:Math.random()*9,strokeRate:i ? .0054 : .0038});
   });
 
   const addInspectable=(view,kind,name,type,text)=>{view.eventMode='static';view.cursor='pointer';view.on('pointertap',()=>focusCreature({kind,view,name,type,text}));};
   [[.47,.22],[.69,.61]].forEach((d,i)=>{
-    const built=makeDragonfly(),view=built.root;view.position.set(w*d[0],h*d[1]);view.rotation=i?2.2:-.6;view.alpha=.88;aerialLayer.addChild(view);
+    const built=makeDragonfly(),view=built.root;view.position.set(w*d[0],h*d[1]);view.rotation=i?2.2:-.6;view.scale.set(mobileContentScale);view.alpha=.88;aerialLayer.addChild(view);
     addInspectable(view,'dragonflies','Pond Dragonfly','AERIAL INSECT','An agile aerial predator, the dragonfly patrols above the water, hovering almost motionless before accelerating into a sudden dart.');
     const heading=view.rotation-Math.PI/2;
-    dragonflies.push({view,wings:built.wings,phase:i*3.1,heading,targetX:view.x+Math.cos(heading)*360,targetY:view.y+Math.sin(heading)*360,timer:150+i*90,flightEnergy:0,touchTimer:520+i*310,touchProgress:-1,touchMade:false});
+    dragonflies.push({view,wings:built.wings,baseScale:mobileContentScale,phase:i*3.1,heading,targetX:view.x+Math.cos(heading)*360,targetY:view.y+Math.sin(heading)*360,timer:150+i*90,flightEnergy:0,touchTimer:520+i*310,touchProgress:-1,touchMade:false});
   });
   applyCreatureVisibility();
 }
@@ -534,6 +610,7 @@ const textureSets = palettes.map((p,i)=>makeKoiTextures(p, 1307+i*91));
 const shadowTexture = (()=>{const g=new Graphics().ellipse(0,0,76,24).fill({color:0x001012,alpha:.48});return app.renderer.generateTexture({target:g,resolution:1})})();
 startupLog('Generated runtime textures',{paletteSets:textureSets.length,shadow:[shadowTexture.width,shadowTexture.height]});
 const shadowBlur = isCanvasRenderer?null:new BlurFilter({strength:5,quality:1});
+if(shadowBlur)shadowBlur.resolution='inherit';
 
 class Koi {
   constructor(initial=false,breedIndex=fish.length%koiTextures.length) {
@@ -549,7 +626,7 @@ class Koi {
     this.wakeTimer=70+Math.random()*120;
     this.depth=.08+Math.random()*.46;this.targetDepth=this.depth;this.depthTimer=180+Math.random()*420;this.wasNearSurface=this.depth<.12;
     const densityScale=Math.min(.52,Math.max(.3,Math.sqrt(app.screen.width*app.screen.height/960000)*.44));
-    this.scale=densityScale*(.9+Math.random()*.18);
+    this.scale=densityScale*(.9+Math.random()*.18)*mobileContentScale;
     this.breed=koiBreeds[breedIndex%koiBreeds.length];
     this.koiTexture=koiTextures[breedIndex%koiTextures.length];
     this.view=new Container(); this.view.position.set(this.x,this.y); this.view.rotation=this.angle;
@@ -640,7 +717,8 @@ class Koi {
     if(neighbors){const avoidAngle=Math.atan2(avoidY,avoidX);this.angle+=angleDiff(avoidAngle,this.angle)*(target ? .018 : .055)*delta;this.speed+=(target ? .006 : .018)*delta;}
     const boundary=pondDistance(this.x,this.y,58);
     if(boundary>.86){const desired=Math.atan2(pondArea.cy-this.y,pondArea.cx-this.x);this.angle+=angleDiff(desired,this.angle)*(.012+Math.max(0,boundary-.86)*.08)*delta;}
-    this.x+=Math.cos(this.angle)*this.speed*delta;this.y+=Math.sin(this.angle)*this.speed*delta;
+    const travelScale=useMobilePond?.55:1;
+    this.x+=Math.cos(this.angle)*this.speed*delta*travelScale;this.y+=Math.sin(this.angle)*this.speed*delta*travelScale;
     if(!insidePond(this.x,this.y,48)){const safe=constrainToPond(this.x,this.y,48);this.x=safe.x;this.y=safe.y;}
     this.strokeIntensity+=(desiredStroke-this.strokeIntensity)*.045*delta;
     this.swimPhase+=delta*(.018+this.strokeIntensity*.14);
@@ -763,18 +841,34 @@ function feed(x,y){
     food.push({view:pellet,x:px,y:py,state:'settling',life:2.4+Math.random()*.7,age:0,delay:i*.8+Math.random()*3,bob:Math.random()*7,scale:pelletScale,claimedBy:null});
   }
   addRipple(x,y,1.2,{intensity:.12});
-  document.querySelector('#hint').style.opacity='0';if(audioOn)plink();
+  document.querySelector('#hint').style.opacity='0';
 }
 
 canvas.addEventListener('pointerup',e=>{if(performance.now()-lastCreatureClick>140)feed(e.clientX,e.clientY)});
+const controlsMenuButton=document.querySelector('#controlsMenuButton');
+const pondControls=document.querySelector('#pondControls');
+function setControlsOpen(open){
+  if(!useMobilePond)return;
+  document.body.classList.toggle('controls-open',open);
+  controlsMenuButton.setAttribute('aria-expanded',String(open));
+  controlsMenuButton.setAttribute('aria-label',open?'Hide pond controls':'Show pond controls');
+  pondControls.setAttribute('aria-hidden',String(!open));
+  pondControls.inert=!open;
+}
+if(useMobilePond){
+  setControlsOpen(false);
+  controlsMenuButton.addEventListener('click',()=>setControlsOpen(!document.body.classList.contains('controls-open')));
+  canvas.addEventListener('pointerdown',()=>setControlsOpen(false));
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')setControlsOpen(false)});
+}
 document.querySelector('#addFish').addEventListener('click',e=>{e.stopPropagation();setKoiCount(fish.length+1)});
 document.querySelector('#removeFish').addEventListener('click',e=>{e.stopPropagation();setKoiCount(fish.length-1)});
 document.querySelector('#fishRange').addEventListener('input',e=>setKoiCount(Number(e.target.value)));
 document.querySelector('#waterMotionButton').addEventListener('click',e=>{
   waterMotionEnhanced=!waterMotionEnhanced;e.currentTarget.setAttribute('aria-pressed',waterMotionEnhanced);
-  fishRefraction.scale.set(waterMotionEnhanced?5.8:0,waterMotionEnhanced?4.1:0);
-  animalRefraction.scale.set(waterMotionEnhanced?3.4:0,waterMotionEnhanced?2.5:0);
-  radialRefraction.scale.set(waterMotionEnhanced?58:0,waterMotionEnhanced?48:0);
+  fishRefraction?.scale.set(waterMotionEnhanced?5.8:0,waterMotionEnhanced?4.1:0);
+  animalRefraction?.scale.set(waterMotionEnhanced?3.4:0,waterMotionEnhanced?2.5:0);
+  radialRefraction?.scale.set(waterMotionEnhanced?58:0,waterMotionEnhanced?48:0);
   waterShadeSprite.visible=waterMotionEnhanced;
   if(!waterMotionEnhanced)clearWaterMotion();
 });
@@ -793,8 +887,56 @@ creatureDialog.querySelectorAll('[data-creature]').forEach(input=>input.addEvent
 }));
 creatureDialog.addEventListener('click',e=>{if(e.target===creatureDialog)creatureDialog.close();});
 document.querySelector('#creatureInfoClose').addEventListener('click',clearCreatureFocus);
-document.querySelector('#soundButton').addEventListener('click',e=>{audioOn=!audioOn;e.currentTarget.setAttribute('aria-pressed',audioOn);if(audioOn){audioCtx=new(window.AudioContext||window.webkitAudioContext)();plink()}});
-function plink(){if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.setValueAtTime(520+Math.random()*120,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(250,audioCtx.currentTime+.7);g.gain.setValueAtTime(.045,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.7);o.connect(g).connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.7)}
+const soundButton=document.querySelector('#soundButton');
+const soundControl=document.querySelector('.sound-control');
+const volumeSlider=document.querySelector('#volumeSlider');
+function reflectAudioState(playing){
+  audioOn=playing;
+  soundButton.setAttribute('aria-pressed',playing);
+  soundButton.setAttribute('aria-label',playing?'Mute pond music':'Play pond music');
+}
+gardenMusic.addEventListener('play',()=>reflectAudioState(true));
+gardenMusic.addEventListener('pause',()=>reflectAudioState(false));
+soundButton.addEventListener('click',async()=>{
+  soundControl.classList.add('is-open');
+  if(gardenMusic.paused){
+    try{await startAmbientSoundscape();reflectAudioState(true);}
+    catch(error){reflectAudioState(false);console.warn('[KOI AUDIO] Playback failed',error);}
+  }else{
+    stopAmbientSoundscape();reflectAudioState(false);
+  }
+});
+volumeSlider.addEventListener('input',()=>{
+  userVolume=Number(volumeSlider.value);
+  gardenMusic.volume=userVolume;
+});
+canvas.addEventListener('pointerdown',()=>soundControl.classList.remove('is-open'));
+async function startAmbientSoundscape(){
+  gardenMusic.volume=userVolume;
+  await gardenMusic.play();
+  reflectAudioState(true);
+}
+function stopAmbientSoundscape(){
+  gardenMusic.pause();
+}
+gardenMusic.addEventListener('canplaythrough',()=>console.info('[KOI AUDIO] Pond music ready',{
+  duration:gardenMusic.duration,source:gardenMusic.currentSrc
+}),{once:true});
+gardenMusic.addEventListener('error',()=>console.error('[KOI AUDIO] MP3 failed to load',gardenMusic.error));
+startAmbientSoundscape().catch(error=>{
+  // Autoplay rejection is normal. Keep the desired-on state so the first
+  // non-control interaction can unlock playback.
+  console.info('[KOI AUDIO] Waiting for first interaction',error.name);
+});
+const unlockMusic=event=>{
+  if(event.target.closest?.('#soundButton'))return;
+  if(audioOn&&gardenMusic.paused)startAmbientSoundscape().catch(error=>{
+    console.warn('[KOI AUDIO] Interaction unlock failed',error);
+  });
+};
+window.addEventListener('pointerdown',unlockMusic,{capture:true});
+window.addEventListener('touchstart',unlockMusic,{capture:true,passive:true});
+window.addEventListener('keydown',unlockMusic,{capture:true});
 
 // Complete registered drawings are crossfaded with uneven holds, giving the
 // sip anticipation, contact, and recovery instead of a mechanical GIF loop.
@@ -869,18 +1011,21 @@ let firstRenderedFrame=false;
 app.ticker.add(ticker=>{
   if(!firstRenderedFrame){
     firstRenderedFrame=true;
+    document.body.classList.add('pond-ready');
     startupLog('First animation frame rendered',{
       renderer:isCanvasRenderer?'canvas':'webgl',
       stageChildren:app.stage.children.length,
       fish:fish.length
     });
     console.info('[KOI STARTUP COMPLETE] Pond initialized successfully.');
+    const scheduleIdle=window.requestIdleCallback||((callback)=>setTimeout(callback,900));
+    scheduleIdle(()=>loadDeferredKoiTextures().catch(showStartupError),{timeout:2500});
   }
   const delta=Math.min(ticker.deltaTime,2),now=performance.now();
   if(focusedCreature){
     focusedCreature.progress+=(1-focusedCreature.progress)*.09*delta;
     const v=focusedCreature.view,s=focusedCreature.snapshot,appear=focusedCreature.progress;
-    const targetX=app.screen.width*.5,targetY=app.screen.height*.5,zoom=focusedCreature.zoom;
+    const targetX=app.screen.width*.5,targetY=app.screen.height*(app.screen.width<700?.34:.38),zoom=focusedCreature.zoom;
     v.position.set(s.x+(targetX-s.x)*appear,s.y+(targetY-s.y)*appear);
     v.rotation=s.rotation+angleDiff(0,s.rotation)*appear;
     v.scale.set(s.scaleX*(1+(zoom-1)*appear),s.scaleY*(1+(zoom-1)*appear));v.alpha=s.alpha+(1-s.alpha)*appear;
@@ -898,6 +1043,11 @@ app.ticker.add(ticker=>{
   }
   physicsFrame++;
   if((waterEnergy>.002||physicsFrame<3)&&physicsFrame%2===0)updateRippleRefraction();
+  const activeWater=waterMotionEnhanced&&(waterEnergy>.002||physicsFrame<3);
+  // The unfiltered water sprite remains underneath, so the expensive second
+  // full-screen pass is only needed while a disturbance is actually visible.
+  refractedWater.visible=activeWater;
+  waterShadeSprite.visible=activeWater;
   const windActive=false;
   displacementMap.x=app.screen.width/2+Math.sin(now*.000075)*24;
   displacementMap.y=app.screen.height/2+Math.cos(now*.000061)*18;
@@ -973,11 +1123,11 @@ app.ticker.add(ticker=>{
     if(d.touchProgress>=0){
       d.touchProgress+=delta/48;
       const dip=Math.sin(Math.min(1,d.touchProgress)*Math.PI);
-      d.view.scale.set(1-dip*.18);d.view.alpha=.88-dip*.1;
+      d.view.scale.set(d.baseScale*(1-dip*.18));d.view.alpha=.88-dip*.1;
       if(!d.touchMade&&d.touchProgress>=.48){
         disturbWater(d.view.x,d.view.y,.035,7,d.heading);d.touchMade=true;
       }
-      if(d.touchProgress>=1){d.touchProgress=-1;d.view.scale.set(1);d.view.alpha=.88;}
+      if(d.touchProgress>=1){d.touchProgress=-1;d.view.scale.set(d.baseScale);d.view.alpha=.88;}
     }
     d.flightEnergy+=(Math.min(1,speed/.55)-d.flightEnergy)*.12*delta;
     const beat=now*(.025+d.flightEnergy*.035)+d.phase;

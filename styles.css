@@ -10,14 +10,24 @@
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 
 body {
-  background: #061c20;
+  background: #8b7466 url("./assets/pond-water.png") center / cover no-repeat;
   color: var(--cream);
   font-family: "DM Sans", sans-serif;
 }
 .renderer-notice { position:fixed; z-index:20; left:50%; top:50%; width:min(360px,calc(100vw - 36px)); transform:translate(-50%,-50%); display:grid; gap:9px; padding:20px 22px; border:1px solid rgba(255,255,255,.18); background:rgba(7,31,32,.92); color:#e9eadf; text-align:center; box-shadow:0 24px 70px rgba(0,0,0,.35); }
 .renderer-notice strong { font:400 24px/1.1 "Italiana",Georgia,serif; }.renderer-notice span { color:#b9c7bd; font:italic 11px/1.6 Georgia,serif; }
 
-#pond { position: fixed; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+#pond {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  background: #8b7466 url("./assets/pond-water.png") center / cover no-repeat;
+  opacity: 0;
+  transition: opacity .24s ease-out;
+}
+body.pond-ready #pond { opacity: 1; }
 
 .masthead {
   position: fixed;
@@ -28,12 +38,25 @@ body {
   align-items: center;
   pointer-events: none;
 }
+.masthead-left { display:flex; align-items:center; gap:7px; pointer-events:auto; }
 
 .brand { pointer-events: auto; display: flex; align-items: center; gap: 9px; padding: 6px 10px 6px 6px; color: #fffaf0; text-decoration: none; font-size: 8px; letter-spacing: .22em; font-weight: 500; background: rgba(28,35,30,.42); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; backdrop-filter: blur(12px) saturate(.8); box-shadow: 0 4px 18px rgba(25,18,16,.16); text-shadow: 0 1px 5px rgba(0,0,0,.55); }
 .brand-mark { width: 23px; height: 23px; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; display: grid; place-items: center; font-family: serif; font-size: 11px; }
 .round-button { pointer-events: auto; width: 33px; height: 33px; border: 1px solid rgba(255,255,255,.18); background: rgba(28,35,30,.42); backdrop-filter: blur(12px) saturate(.8); box-shadow: 0 4px 18px rgba(25,18,16,.16); color: #fffaf0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; transition: .25s ease; }
 .round-button:hover, .round-button[aria-pressed="true"] { background: var(--cream); color: #0c2828; }
 .round-button svg { width: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+#soundButton .mute-mark { display:none; }
+#soundButton[aria-pressed="false"] .sound-waves { display:none; }
+#soundButton[aria-pressed="false"] .mute-mark { display:block; }
+.sound-control { position:relative; pointer-events:auto; }
+.volume-panel { position:absolute; top:42px; right:0; width:142px; display:grid; grid-template-columns:auto 1fr; align-items:center; gap:9px; padding:9px 10px; border:1px solid rgba(255,255,255,.16); background:rgba(6,30,31,.62); color:#d5cba8; backdrop-filter:blur(14px); box-shadow:0 18px 50px rgba(0,0,0,.16); opacity:0; visibility:hidden; transform:translateY(-5px); transition:.18s ease; }
+.sound-control:hover .volume-panel,.sound-control:focus-within .volume-panel,.sound-control.is-open .volume-panel { opacity:1; visibility:visible; transform:none; }
+.volume-panel span { font:500 6px/1 "DM Sans",sans-serif; letter-spacing:.18em; }
+.volume-panel input { width:100%; height:2px; margin:0; appearance:none; background:rgba(255,255,255,.2); accent-color:#c8b984; }
+.volume-panel input::-webkit-slider-thumb { appearance:none; width:11px; height:11px; border:1px solid #d8ccb0; border-radius:50%; background:#173d3a; }
+.menu-button { display:none; align-content:center; gap:3px; background:rgba(6,30,31,.46); border-color:rgba(255,255,255,.16); color:#fffaf0; backdrop-filter:blur(14px); }
+.menu-button span { width:13px; height:1px; background:currentColor; transition:transform .22s ease,opacity .22s ease; }
+.menu-button:hover, .menu-button:active, body.controls-open .menu-button { background:rgba(6,30,31,.46); border-color:rgba(255,255,255,.16); color:#fffaf0; backdrop-filter:blur(14px); }
 
 main { position: relative; z-index: 2; height: 100%; pointer-events: none; }
 .hero { position: absolute; right: 28px; bottom: 25px; max-width: 285px; text-align: right; }
@@ -72,10 +95,10 @@ h1 em { color: #b7ae8c; font-weight: 400; }
 .creature-option input { position: absolute; opacity: 0; pointer-events: none; }.creature-option i { position: relative; flex: 0 0 auto; width: 34px; height: 19px; border-radius: 99px; background: rgba(255,255,255,.12); transition: .2s; }.creature-option i::after { content:""; position:absolute; width:13px; height:13px; top:3px; left:3px; border-radius:50%; background:#dce4dc; transition:.2s; }
 .creature-option input:checked + i { background:#278d83; }.creature-option input:checked + i::after { transform:translateX(15px); background:#f2fffb; }
 .dialog-done { width: 100%; margin-top: 9px; padding: 11px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.08); color: #edf1e9; cursor: pointer; font: 500 8px/1 "DM Sans",sans-serif; letter-spacing:.22em; }
-.creature-info { position: fixed; z-index: 6; right: 22px; bottom: 22px; width: min(310px, calc(100vw - 44px)); padding: 18px 20px 19px; border: 1px solid rgba(255,255,255,.18); background: rgba(9,32,31,.82); color:#e8eadf; backdrop-filter: blur(18px) saturate(.85); box-shadow: 0 22px 70px rgba(0,0,0,.3); animation: info-in .32s ease both; }
-.creature-info[hidden] { display:none; }.creature-info h2 { margin:5px 28px 8px 0; font:400 27px/1 "Italiana",Georgia,serif; }.creature-info > p:last-child { margin:0; color:#b9c7bd; font:italic 11px/1.6 Georgia,serif; }
+.creature-info { position:fixed; z-index:6; left:50%; top:67%; width:min(520px,calc(100vw - 36px)); transform:translateX(-50%); padding:15px 48px 17px; border:1px solid rgba(255,255,255,.16); background:rgba(6,30,31,.46); color:#e8eadf; text-align:center; backdrop-filter:blur(14px); box-shadow:0 18px 50px rgba(0,0,0,.14); animation:info-in .32s ease both; }
+.creature-info[hidden] { display:none; }.creature-info h2 { margin:4px 0 7px; font:400 28px/1 "Italiana",Georgia,serif; }.creature-info > p:last-child { max-width:430px; margin:0 auto; color:#b9c7bd; font:italic 11px/1.55 Georgia,serif; }
 .info-close { position:absolute; right:12px; top:12px; width:26px; height:26px; border:1px solid rgba(255,255,255,.14); border-radius:50%; background:transparent; color:#dce4dc; cursor:pointer; font-size:16px; }
-@keyframes info-in { from { opacity:0; transform:translateY(10px) scale(.98); } to { opacity:1; transform:none; } }
+@keyframes info-in { from { opacity:0; transform:translate(-50%,10px) scale(.98); } to { opacity:1; transform:translateX(-50%); } }
 
 .hint { position: fixed; z-index: 3; left: 50%; bottom: 37px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; color: rgba(221,228,216,.55); font-size: 7px; letter-spacing: .25em; transition: opacity .8s ease; pointer-events: none; }
 .pond-watcher { position:fixed; z-index:3; left:-12px; bottom:-8px; width:clamp(190px,20vw,300px); aspect-ratio:1; pointer-events:none; user-select:none; transform-origin:50% 92%; animation:watcher-presence 5.8s ease-in-out infinite; }
@@ -91,18 +114,21 @@ h1 em { color: #b7ae8c; font-weight: 400; }
 .frame-5 { background-position:50% 100%; transform:translateY(-2px) rotate(-.2deg); }
 .frame-6 { background-position:100% 100%; transform:translateY(-1px) rotate(-.1deg); }
 .watcher-shadow { position:absolute; z-index:1; left:17%; right:5%; bottom:3%; height:8%; border-radius:50%; background:radial-gradient(ellipse,rgba(45,35,21,.3),rgba(45,35,21,0) 70%); filter:blur(5px); transform:rotate(-3deg); }
-.watcher-grass { position:absolute; z-index:3; left:4%; right:3%; bottom:1%; height:16%; opacity:.72; background:
-  linear-gradient(75deg,transparent 47%,#4d5637 49%,#4d5637 51%,transparent 53%) 4% 100%/18% 80% no-repeat,
-  linear-gradient(98deg,transparent 47%,#62613b 49%,#62613b 51%,transparent 53%) 23% 100%/17% 64% no-repeat,
-  linear-gradient(70deg,transparent 47%,#495337 49%,#495337 51%,transparent 53%) 70% 100%/18% 72% no-repeat,
-  linear-gradient(105deg,transparent 47%,#666341 49%,#666341 51%,transparent 53%) 91% 100%/17% 57% no-repeat;
-  filter:blur(.15px);
-}
 @keyframes watcher-presence { 0%,100% { transform:scale(1); } 50% { transform:scale(1.001,1.003); } }
 .mouse { width: 13px; height: 20px; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; position: relative; }
 .mouse i { position: absolute; top: 4px; left: 5px; width: 1px; height: 4px; background: #ddd; animation: scroll 1.8s infinite; }
 .grain { pointer-events: none; position: fixed; z-index: 5; inset: 0; opacity: .025; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E"); }
 @keyframes scroll { 0% { transform: translateY(0); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(6px); opacity: 0; } }
+
+@media (max-width:700px) and (orientation:portrait) {
+  body, #pond { background-image:url("./assets/pond-water-mobile.png"); }
+  .menu-button { display:grid; }
+  body.controls-open .menu-button span:nth-child(1) { transform:translateY(4px) rotate(45deg); }
+  body.controls-open .menu-button span:nth-child(2) { opacity:0; }
+  body.controls-open .menu-button span:nth-child(3) { transform:translateY(-4px) rotate(-45deg); }
+  .pond-card { opacity:0; visibility:hidden; pointer-events:none; transform:translateY(-7px) scale(.985); transform-origin:top left; transition:opacity .2s ease,transform .2s ease,visibility .2s; }
+  body.controls-open .pond-card { opacity:1; visibility:visible; pointer-events:auto; transform:none; }
+}
 
 @media (max-width: 700px) {
   .masthead { top: 14px; left: 14px; right: 14px; }
@@ -110,8 +136,8 @@ h1 em { color: #b7ae8c; font-weight: 400; }
   h1 { font-size: 27px; }
   .intro { display: none; }
   .pond-watcher { left:-22px; width:min(205px,48vw); }
-  .pond-card { left: 14px; top: 62px; width: min(258px, calc(100vw - 28px)); }
-  .creature-info { right:14px; bottom:14px; width:calc(100vw - 28px); }
+  .pond-card { left:14px; top:62px; width:min(258px,calc(100vw - 28px)); }
+  .creature-info { top:66%; bottom:auto; width:calc(100vw - 28px); padding:13px 40px 14px; }
   .hint { display: none; }
 }
 
