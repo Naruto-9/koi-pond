@@ -11,6 +11,21 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <section class="pond-loader" aria-live="polite" aria-label="Pond loading progress">
+      <div class="pond-loader__panel">
+        <p class="pond-loader__eyebrow">PREPARING THE GARDEN</p>
+        <h2>Awakening the pond</h2>
+        <ol class="pond-loader__steps">
+          <li data-load-stage="init" data-state="active"><i></i><span>Initializing pond</span><b></b></li>
+          <li data-load-stage="renderer"><i></i><span>Preparing renderer</span><b></b></li>
+          <li data-load-stage="assets"><i></i><span>Loading garden artwork</span><b></b></li>
+          <li data-load-stage="koi"><i></i><span>Adding koi</span><b></b></li>
+          <li data-load-stage="creatures"><i></i><span>Adding pond creatures</span><b></b></li>
+          <li data-load-stage="water"><i></i><span>Starting water movement</span><b></b></li>
+          <li data-load-stage="ready"><i></i><span>Pond ready</span><b></b></li>
+        </ol>
+      </div>
+    </section>
     <canvas id="pond" aria-label="An animated pond of swimming koi"></canvas>
 
     <header class="masthead">

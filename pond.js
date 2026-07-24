@@ -8,6 +8,16 @@ import gardenMusicUrl from './assets/koi-pond-music.mp3';
 
 const startupStartedAt=performance.now();
 let startupStep=0;
+function setLoadingStage(stage,state='active'){
+  const target=document.querySelector(`[data-load-stage="${stage}"]`);
+  if(!target)return;
+  if(state==='active'){
+    document.querySelectorAll('.pond-loader__steps [data-state="active"]').forEach(item=>{
+      if(item!==target)item.dataset.state='complete';
+    });
+  }
+  target.dataset.state=state;
+}
 function startupLog(label,details){
   const elapsed=(performance.now()-startupStartedAt).toFixed(1);
   console.info(`[KOI STARTUP ${String(++startupStep).padStart(2,'0')} +${elapsed}ms] ${label}`,details??'');
@@ -29,6 +39,8 @@ startupLog('Renderer implementations bundled',{
 });
 
 function showStartupError(reason){
+  const active=document.querySelector('.pond-loader__steps [data-state="active"]');
+  if(active)active.dataset.state='error';
   if(document.querySelector('.startup-error'))return;
   const error=reason instanceof Error?reason:new Error(String(reason||'Unknown startup error'));
   const notice=document.createElement('pre');
@@ -71,6 +83,7 @@ function withStartupTimeout(promise,label,timeout=4000){
   return Promise.race([promise,deadline]).finally(()=>clearTimeout(timer));
 }
 try {
+  setLoadingStage('init','complete');setLoadingStage('renderer');
   startupLog('Attempting WebGL renderer');
   await withStartupTimeout(
     app.init({...rendererOptions,preference:'webgl'}),
@@ -108,6 +121,7 @@ try {
 // identifier rather than a class-name string.
 const isCanvasRenderer=app.renderer.type===RendererType.CANVAS;
 startupLog('Renderer selected',{type:app.renderer.type,isCanvasRenderer});
+setLoadingStage('renderer','complete');setLoadingStage('assets');
 
 const waterLayer = new Container();
 const refractedWaterLayer = new Container();
@@ -272,6 +286,7 @@ const [
   Promise.all(Array.from({length:12},(_,i)=>loadPondAsset(`pellet-${i+1}.png`)))
 ]);
 startupLog('Critical pond textures loaded',{koi:koiTextures.length,pebbles:pebbleTextures.length,pellets:pelletTextures.length});
+setLoadingStage('assets','complete');setLoadingStage('koi');
 let deferredKoiLoadStarted=false;
 async function loadDeferredKoiTextures(){
   if(deferredKoiLoadStarted||koiTextures.length>=koiBreeds.length)return;
@@ -975,6 +990,7 @@ advanceWatcher();
 startupLog('Creating initial koi');
 for(let i=0;i<10;i++)addKoi(true,i);syncKoiControls();
 startupLog('Initial koi created',{count:fish.length});
+setLoadingStage('koi','complete');setLoadingStage('creatures');
 function layout(){
   startupLog('Layout started',{screen:[app.screen.width,app.screen.height]});
   const cover=Math.max(app.screen.width/pondWaterTexture.width,app.screen.height/pondWaterTexture.height);
@@ -1003,6 +1019,10 @@ function layout(){
   pondMask.clear().ellipse(pondArea.cx,pondArea.cy,pondArea.rx,pondArea.ry).fill(0xffffff);
   redrawCaustics();redrawAmbientLight();redrawWaterTint();buildPondDecor();
   startupLog('Layout completed',{pondArea:{...pondArea},fish:fish.length,turtles:turtles.length,frogs:frogs.length,dragonflies:dragonflies.length});
+  if(!document.body.classList.contains('pond-ready')){
+    setLoadingStage('creatures','complete');setLoadingStage('water');
+    setLoadingStage('water','complete');setLoadingStage('ready');
+  }
 }
 layout();window.addEventListener('resize',layout);
 document.addEventListener('visibilitychange',()=>document.hidden?app.ticker.stop():app.ticker.start());
@@ -1011,6 +1031,7 @@ let firstRenderedFrame=false;
 app.ticker.add(ticker=>{
   if(!firstRenderedFrame){
     firstRenderedFrame=true;
+    setLoadingStage('ready','complete');
     document.body.classList.add('pond-ready');
     startupLog('First animation frame rendered',{
       renderer:isCanvasRenderer?'canvas':'webgl',
