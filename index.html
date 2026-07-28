@@ -49,15 +49,18 @@
         <span></span><span></span><span></span>
       </button>
       </div>
-      <div class="sound-control">
-      <button class="round-button" id="soundButton" aria-label="Mute pond music" aria-pressed="true">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path class="speaker-shape" d="M4 14h4l5 4V6L8 10H4v4Z"/>
-          <path class="sound-waves" d="M16.5 8.8a5 5 0 0 1 0 6.4M19 6a9 9 0 0 1 0 12"/>
-          <path class="mute-mark" d="m16 10 5 5m0-5-5 5"/>
-        </svg>
-      </button>
-      <label class="volume-panel" for="volumeSlider"><span>VOLUME</span><input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.78" /></label>
+      <div class="masthead-right">
+        <time class="garden-clock" id="gardenClock" aria-label="Local time">--:--</time>
+        <div class="sound-control">
+        <button class="round-button" id="soundButton" aria-label="Mute pond music" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path class="speaker-shape" d="M4 14h4l5 4V6L8 10H4v4Z"/>
+            <path class="sound-waves" d="M16.5 8.8a5 5 0 0 1 0 6.4M19 6a9 9 0 0 1 0 12"/>
+            <path class="mute-mark" d="m16 10 5 5m0-5-5 5"/>
+          </svg>
+        </button>
+        <label class="volume-panel" for="volumeSlider"><span>VOLUME</span><input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.78" /></label>
+        </div>
       </div>
     </header>
 
@@ -89,6 +92,16 @@
         <button class="water-toggle" id="waveContrastButton" type="button" aria-pressed="false">
           <span>WAVE CONTRAST</span><i aria-hidden="true"></i>
         </button>
+        <button class="water-toggle" id="rainButton" type="button" aria-pressed="false" title="Weather for Tai Seng, Singapore">
+          <span>RAIN</span><i aria-hidden="true"></i>
+        </button>
+        <button class="water-toggle" id="lightningButton" type="button" aria-pressed="false" title="Lightning follows Tai Seng thunderstorm weather">
+          <span>LIGHTNING</span><i aria-hidden="true"></i>
+        </button>
+        <div class="weather-status" aria-live="polite">
+          <span>TAI SENG</span>
+          <output id="taiSengWeather">CHECKING…</output>
+        </div>
         <button class="creature-button" id="creatureButton" type="button">
           <span>CREATURES</span><span aria-hidden="true">•••</span>
         </button>
@@ -137,11 +150,6 @@
       <span class="watcher-shadow" aria-hidden="true"></span>
       <span class="watcher-sprite" aria-hidden="true">
         <i class="watcher-frame frame-1 is-active"></i>
-        <i class="watcher-frame frame-2"></i>
-        <i class="watcher-frame frame-3"></i>
-        <i class="watcher-frame frame-4"></i>
-        <i class="watcher-frame frame-5"></i>
-        <i class="watcher-frame frame-6"></i>
       </span>
     </div>
     <div class="grain"></div>

@@ -29,6 +29,17 @@ startupLog('Module loaded',{
   url:location.href,
   userAgent:navigator.userAgent
 });
+const gardenClock=document.querySelector('#gardenClock');
+const clockFormatter=new Intl.DateTimeFormat(undefined,{hour:'2-digit',minute:'2-digit'});
+function updateGardenClock(){
+  if(!gardenClock)return;
+  const now=new Date();
+  gardenClock.textContent=clockFormatter.format(now);
+  gardenClock.dateTime=now.toISOString();
+  gardenClock.setAttribute('aria-label',`Local time ${gardenClock.textContent}`);
+}
+updateGardenClock();
+setInterval(updateGardenClock,15_000);
 // Pixi normally discovers these through asynchronous imports. Keeping direct
 // references forces Vite to include both renderer implementations in the main
 // production module, avoiding a renderer-discovery promise that can stall.
@@ -135,9 +146,11 @@ const floatingLayer = new Container();
 const lightingLayer = new Container();
 const surfaceLayer = new Container();
 const aerialLayer = new Container();
+const weatherLayer = new Container();
+const rainLayer = new Container();
 const focusLayer = new Container();
 const pondMask = new Graphics();
-app.stage.addChild(waterLayer, refractedWaterLayer, waterTintLayer, bankPlantLayer, shorelineLayer, decorLayer, shadowLayer, fishLayer, floatingLayer, lightingLayer, surfaceLayer, aerialLayer, focusLayer, pondMask);
+app.stage.addChild(waterLayer, refractedWaterLayer, waterTintLayer, bankPlantLayer, shorelineLayer, decorLayer, shadowLayer, fishLayer, floatingLayer, lightingLayer, surfaceLayer, aerialLayer, weatherLayer, rainLayer, focusLayer, pondMask);
 startupLog('Scene layers created',{stageChildren:app.stage.children.length});
 refractedWaterLayer.mask=pondMask;waterTintLayer.mask=pondMask;shorelineLayer.mask=pondMask;decorLayer.mask=pondMask;shadowLayer.mask=pondMask;fishLayer.mask=pondMask;floatingLayer.mask=pondMask;lightingLayer.mask=pondMask;surfaceLayer.mask=pondMask;
 const pondArea={cx:0,cy:0,rx:1,ry:1};
@@ -202,6 +215,219 @@ const palettes = [
 ];
 const fish = [], food = [], ripples = [], fishWakes=[], refractionRipples=[];
 let lastWakeAt=0,nextWindAt=performance.now()+7000+Math.random()*7000,windUntil=0,lastWindRipple=0,waterMotionEnhanced=true,greenWaterEnabled=false,waveContrastEnabled=false;
+const rainShade=new Graphics();
+rainShade.blendMode='multiply';rainShade.visible=false;weatherLayer.addChild(rainShade);
+const lightningFlash=new Graphics();
+lightningFlash.blendMode='screen';lightningFlash.visible=false;weatherLayer.addChild(lightningFlash);
+if(!isCanvasRenderer)lightningFlash.filters=[new BlurFilter({strength:52,quality:3})];
+const lightningBolt=new Graphics();
+lightningBolt.visible=false;weatherLayer.addChild(lightningBolt);
+const rainDrops=[],rainImpacts=[];
+let rainEnabled=false,rainManualOverride=false,lastRainImpact=0;
+let lightningEnabled=false,lightningManualOverride=false,lightningAge=-1,nextLightningAt=performance.now()+2600;
+rainLayer.visible=false;
+function redrawRainShade(){
+  rainShade.clear()
+    .rect(0,0,app.screen.width,app.screen.height)
+    .fill({color:0x42606a,alpha:.42});
+}
+function syncWeatherLayerVisibility(){
+  rainShade.visible=rainEnabled||lightningEnabled;
+}
+function resetRainDrop(drop,initial=false){
+  drop.y=-18-Math.random()*app.screen.height*(initial?1:.35);
+  const targetPond=pondArea.rx>10&&Math.random()<.82;
+  if(targetPond){
+    const angle=Math.random()*Math.PI*2,radius=Math.sqrt(Math.random())*.82;
+    drop.impactX=pondArea.cx+Math.cos(angle)*pondArea.rx*radius;
+    drop.impactY=pondArea.cy+Math.sin(angle)*pondArea.ry*radius;
+  }else{
+    drop.impactX=Math.random()*app.screen.width;
+    drop.impactY=app.screen.height*(.1+Math.random()*.86);
+  }
+  drop.speed=12+Math.random()*10;
+  drop.drift=-1.8-Math.random()*1.4;
+  const travelTime=Math.max(0,(drop.impactY-drop.y)/drop.speed);
+  drop.x=drop.impactX-drop.drift*travelTime;
+  drop.view.position.set(drop.x,drop.y);
+  drop.view.alpha=.48+Math.random()*.38;
+}
+function addRainImpact(x,y){
+  if(rainImpacts.length>=28)return;
+  const view=new Graphics();view.position.set(x,y);rainLayer.addChildAt(view,0);
+  rainImpacts.push({view,age:0,life:18,phase:Math.random()*Math.PI*2});
+}
+function updateRainImpacts(delta){
+  for(let i=rainImpacts.length-1;i>=0;i--){
+    const impact=rainImpacts[i];impact.age+=delta;
+    const p=Math.min(1,impact.age/impact.life),fade=Math.pow(1-p,1.6);
+    const radius=1.5+p*8,wobble=Math.sin(impact.phase+impact.age*.45)*.35;
+    impact.view.clear()
+      .ellipse(wobble,0,radius,radius*.42)
+      .stroke({width:.7,color:0xe3f2ec,alpha:fade*.72});
+    if(impact.age<5){
+      const splash=(1-impact.age/5)*4;
+      impact.view.moveTo(0,0).lineTo(-.7,-splash)
+        .stroke({width:.65,color:0xe8f4ef,alpha:fade*.68});
+    }
+    if(impact.age>=impact.life){
+      impact.view.destroy();rainImpacts.splice(i,1);
+    }
+  }
+}
+function ensureRainDrops(){
+  const target=useMobilePond?42:76;
+  while(rainDrops.length<target){
+    const view=new Graphics()
+      .moveTo(0,0).lineTo(-3.5,16)
+      .stroke({width:1.05,color:0xe5f1ed,alpha:.88});
+    rainLayer.addChild(view);
+    const drop={view,x:0,y:0,impactY:0,speed:0,drift:0};
+    rainDrops.push(drop);resetRainDrop(drop,true);
+  }
+}
+function setRainEnabled(enabled,{manual=false,weatherLabel=''}={}){
+  rainEnabled=Boolean(enabled);
+  if(manual)rainManualOverride=true;
+  ensureRainDrops();
+  rainLayer.visible=rainEnabled;
+  syncWeatherLayerVisibility();
+  if(!rainEnabled){
+    rainImpacts.forEach(impact=>impact.view.destroy());
+    rainImpacts.length=0;
+  }
+  document.body.classList.toggle('is-raining',rainEnabled);
+  const watcher=document.querySelector('.pond-watcher');
+  if(watcher){
+    if(rainEnabled){
+      const frame=watcher.querySelector('.watcher-frame');
+      if(frame)frame.className='watcher-frame frame-1 is-active';
+    }
+    const character=watcher.dataset.character||'girl';
+    watcher.setAttribute(
+      'aria-label',
+      rainEnabled
+        ? `A ${character} sitting beside the rainy koi pond in a raincoat and holding an umbrella`
+        : `A ${character} sitting beside the koi pond and drinking bubble tea`
+    );
+  }
+  const button=document.querySelector('#rainButton');
+  button?.setAttribute('aria-pressed',String(rainEnabled));
+  button?.setAttribute('aria-label',`${rainEnabled?'Disable':'Enable'} rain${weatherLabel?`. Tai Seng weather: ${weatherLabel}`:''}`);
+  if(button&&weatherLabel)button.title=`Tai Seng weather: ${weatherLabel}`;
+}
+function setLightningEnabled(enabled,{manual=false,weatherLabel=''}={}){
+  lightningEnabled=Boolean(enabled);
+  if(manual)lightningManualOverride=true;
+  if(lightningEnabled)nextLightningAt=performance.now()+900+Math.random()*1700;
+  else{
+    lightningAge=-1;lightningFlash.visible=false;lightningBolt.visible=false;
+  }
+  syncWeatherLayerVisibility();
+  const button=document.querySelector('#lightningButton');
+  button?.setAttribute('aria-pressed',String(lightningEnabled));
+  button?.setAttribute('aria-label',`${lightningEnabled?'Disable':'Enable'} lightning${weatherLabel?`. Tai Seng weather: ${weatherLabel}`:''}`);
+  if(button&&weatherLabel)button.title=`Tai Seng weather: ${weatherLabel}`;
+}
+function beginLightning(now){
+  lightningAge=0;
+  nextLightningAt=now+6500+Math.random()*8500;
+  lightningFlash.visible=true;lightningBolt.visible=false;
+  const startX=app.screen.width*(.18+Math.random()*.64);
+  const endX=startX+(Math.random()-.5)*app.screen.width*.16;
+  const endY=app.screen.height*(.43+Math.random()*.2);
+  // Layered, uneven cloud banks avoid the obvious oval produced by a single
+  // radial shape. The blur turns their jagged boundaries into distant light.
+  lightningFlash.clear();
+  for(let layer=0;layer<4;layer++){
+    const width=app.screen.width*(.38+layer*.12);
+    const top=app.screen.height*(-.1+layer*.025);
+    const bottom=app.screen.height*(.24+layer*.075);
+    const points=[];
+    const steps=8;
+    for(let i=0;i<=steps;i++){
+      const p=i/steps;
+      points.push(startX-width/2+width*p,top+(Math.random()-.5)*18);
+    }
+    for(let i=steps;i>=0;i--){
+      const p=i/steps;
+      points.push(startX-width/2+width*p,bottom+(Math.random()-.5)*25);
+    }
+    lightningFlash.poly(points).fill({color:layer===0?0xd6e1e4:0x91a9b1,alpha:.24-layer*.035});
+  }
+  const points=[{x:startX,y:-10}];
+  const segments=9;
+  for(let i=1;i<=segments;i++){
+    const p=i/segments;
+    points.push({
+      x:startX+(endX-startX)*p+(Math.random()-.5)*(34*(1-p)+9),
+      y:-10+(endY+10)*p
+    });
+  }
+  lightningBolt.clear().moveTo(points[0].x,points[0].y);
+  points.slice(1).forEach(point=>lightningBolt.lineTo(point.x,point.y));
+  lightningBolt.stroke({width:4.6,color:0x8da7b4,alpha:.2});
+  lightningBolt.moveTo(points[0].x,points[0].y);
+  points.slice(1).forEach(point=>lightningBolt.lineTo(point.x,point.y));
+  lightningBolt.stroke({width:1.15,color:0xe4f0f2,alpha:.65});
+  // Short secondary channels peel away from the stepped leader and terminate
+  // in the cloud layer rather than branching symmetrically.
+  for(let branch=0;branch<3+Math.floor(Math.random()*3);branch++){
+    const rootIndex=2+Math.floor(Math.random()*(points.length-3));
+    const root=points[rootIndex],side=Math.random()<.5?-1:1;
+    const length=28+Math.random()*52;
+    lightningBolt.moveTo(root.x,root.y)
+      .lineTo(root.x+side*length*.45,root.y+10+Math.random()*10)
+      .lineTo(root.x+side*length,root.y+20+Math.random()*18)
+      .stroke({width:.72,color:0xcfe1e5,alpha:.4});
+  }
+}
+function updateLightning(delta,now){
+  if(!lightningEnabled)return;
+  if(lightningAge<0){
+    if(now>=nextLightningAt)beginLightning(now);
+    return;
+  }
+  lightningAge+=delta;
+  // Faint stepped leader, energetic return stroke, then a weaker re-strike.
+  const flash = lightningAge < 2 ? .18
+    : lightningAge < 3.5 ? 1
+    : lightningAge < 6 ? .08
+    : lightningAge < 8 ? .48
+    : lightningAge < 16 ? .1
+    : 0;
+  lightningFlash.alpha=flash*.17;
+  lightningBolt.alpha = lightningAge < 2 ? .12
+    : lightningAge < 3.5 ? .72
+    : lightningAge < 8 ? Math.min(.4, flash * .58)
+    : Math.max(0, .3 * (1 - (lightningAge - 8) / 8));
+  if(lightningAge>=16){
+    lightningAge=-1;lightningFlash.visible=false;lightningBolt.visible=false;
+  }
+}
+function updateRain(delta,now){
+  if(!rainEnabled)return;
+  for(const drop of rainDrops){
+    drop.x+=drop.drift*delta;drop.y+=drop.speed*delta;
+    drop.view.position.set(drop.x,drop.y);
+    if(drop.y>=drop.impactY){
+      if(insidePond(drop.impactX,drop.impactY,4)){
+        addRainImpact(drop.impactX,drop.impactY);
+        disturbWater(drop.impactX,drop.impactY,-.075,5);
+        // Occasional slightly clearer rings keep rainfall readable without
+        // flooding the water simulation with large disturbances.
+        if(now-lastRainImpact>26){
+          addRipple(drop.impactX,drop.impactY,.2,{intensity:.04});
+          lastRainImpact=now;
+        }
+      }
+      resetRainDrop(drop);
+    }else if(drop.y>app.screen.height+20||drop.x<-30){
+      resetRainDrop(drop);
+    }
+  }
+  updateRainImpacts(delta);
+}
 const creatureVisibility={koi:true,turtles:true,frogs:true,dragonflies:true,hummingbirds:true,plants:true};
 let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
@@ -1116,6 +1342,75 @@ document.querySelector('#waveContrastButton').addEventListener('click',e=>{
   waveContrastEnabled=!waveContrastEnabled;e.currentTarget.setAttribute('aria-pressed',waveContrastEnabled);
   waterShadeSprite.alpha=waveContrastEnabled?.68:.46;
 });
+document.querySelector('#rainButton').addEventListener('click',()=>{
+  setRainEnabled(!rainEnabled,{manual:true});
+});
+document.querySelector('#lightningButton').addEventListener('click',()=>{
+  setLightningEnabled(!lightningEnabled,{manual:true});
+});
+function weatherCodeLabel(code){
+  if(code===0)return 'Clear';
+  if([1,2].includes(code))return 'Partly cloudy';
+  if(code===3)return 'Overcast';
+  if([45,48].includes(code))return 'Fog';
+  if([51,53,55,56,57].includes(code))return 'Drizzle';
+  if([61,63,65,66,67].includes(code))return 'Rain';
+  if([71,73,75,77,85,86].includes(code))return 'Snow';
+  if([80,81,82].includes(code))return 'Showers';
+  if([95,96,99].includes(code))return 'Thunderstorm';
+  return 'Unknown';
+}
+async function syncTaiSengRain(){
+  try{
+    const endpoint=new URL('https://api.open-meteo.com/v1/forecast');
+    endpoint.search=new URLSearchParams({
+      latitude:'1.3359',
+      longitude:'103.8882',
+      current:'temperature_2m,apparent_temperature,precipitation,rain,showers,weather_code',
+      timezone:'Asia/Singapore',
+      forecast_days:'1'
+    });
+    const response=await fetch(endpoint,{cache:'no-store'});
+    if(!response.ok)throw new Error(`Weather request failed (${response.status})`);
+    const current=(await response.json()).current||{};
+    const code=Number(current.weather_code);
+    const precipitation=Number(current.precipitation)||0;
+    const raining=precipitation>0||[51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(code);
+    const thunderstorm=[95,96,99].includes(code);
+    const condition=weatherCodeLabel(code);
+    const temperature=Number(current.temperature_2m);
+    const temperatureLabel=Number.isFinite(temperature)?`${Math.round(temperature)}°C`:'--°';
+    const label=raining?`${condition.toLowerCase()} · ${precipitation.toFixed(1)} mm`:condition.toLowerCase();
+    const weatherOutput=document.querySelector('#taiSengWeather');
+    if(weatherOutput){
+      weatherOutput.value=`${temperatureLabel} · ${condition}`;
+      weatherOutput.title=`Tai Seng: ${temperatureLabel}, ${condition}, precipitation ${precipitation.toFixed(1)} mm`;
+    }
+    if(!rainManualOverride)setRainEnabled(raining,{weatherLabel:label});
+    else{
+      const button=document.querySelector('#rainButton');
+      if(button)button.title=`Tai Seng weather: ${label} · manually overridden`;
+    }
+    if(!lightningManualOverride)setLightningEnabled(thunderstorm,{weatherLabel:label});
+    else{
+      const button=document.querySelector('#lightningButton');
+      if(button)button.title=`Tai Seng weather: ${label} · manually overridden`;
+    }
+  }catch(error){
+    console.info('[KOI WEATHER] Tai Seng weather unavailable; rain remains manual.',error);
+    const button=document.querySelector('#rainButton');
+    if(button)button.title='Weather unavailable · rain can be controlled manually';
+    const lightningButton=document.querySelector('#lightningButton');
+    if(lightningButton)lightningButton.title='Weather unavailable · lightning can be controlled manually';
+    const weatherOutput=document.querySelector('#taiSengWeather');
+    if(weatherOutput){weatherOutput.value='UNAVAILABLE';weatherOutput.title='Tai Seng weather is temporarily unavailable';}
+  }
+}
+// This module performs substantial top-level asset loading, so on some
+// browsers the window load event has already fired by the time this section
+// runs. Start directly instead of depending on that one-shot event.
+setTimeout(syncTaiSengRain,500);
+setInterval(syncTaiSengRain,15*60*1000);
 const creatureDialog=document.querySelector('#creatureDialog');
 document.querySelector('#creatureButton').addEventListener('click',()=>creatureDialog.showModal());
 creatureDialog.querySelectorAll('[data-creature]').forEach(input=>input.addEventListener('change',()=>{
@@ -1182,9 +1477,10 @@ window.addEventListener('pointerdown',unlockMusic,{capture:true});
 window.addEventListener('touchstart',unlockMusic,{capture:true,passive:true});
 window.addEventListener('keydown',unlockMusic,{capture:true});
 
-// Complete registered drawings are crossfaded with uneven holds, giving the
-// sip anticipation, contact, and recovery instead of a mechanical GIF loop.
+// One persistent sprite layer changes atlas positions in place. Keeping all
+// six full-size layers alive caused intermittent mobile compositor flicker.
 const watcherFrames=[...document.querySelectorAll('.watcher-frame')];
+const watcherFrame=watcherFrames[0];
 const watcherRoot=document.querySelector('.pond-watcher');
 const characterToggle=document.querySelector('#characterToggle');
 const timeSelector=document.querySelector('#timeSelector');
@@ -1228,7 +1524,12 @@ setInterval(()=>{
 characterToggle?.addEventListener('click',()=>{
   const next=watcherRoot.dataset.character==='boy'?'girl':'boy';
   watcherRoot.dataset.character=next;
-  watcherRoot.setAttribute('aria-label',`A ${next} sitting beside the koi pond and drinking bubble tea`);
+  watcherRoot.setAttribute(
+    'aria-label',
+    rainEnabled
+      ? `A ${next} sitting beside the rainy koi pond in a raincoat and holding an umbrella`
+      : `A ${next} sitting beside the koi pond and drinking bubble tea`
+  );
   characterToggle.querySelector('strong').textContent=next.toUpperCase();
   characterToggle.setAttribute('aria-label',`Switch to ${next==='boy'?'girl':'boy'} character`);
 });
@@ -1241,14 +1542,29 @@ const watcherCycle=[
   {frame:5,hold:390,fade:135},
   {frame:0,hold:2800,fade:150,rest:true}
 ];
+// Every rain frame shares a pixel-identical seated character. Only the
+// pre-rendered umbrella canopy shifts, avoiding CSS deformation of the body.
+const rainWatcherCycle=[
+  {frame:0,hold:900,rest:true},
+  {frame:1,hold:260,rest:true},
+  {frame:2,hold:430,rest:true},
+  {frame:3,hold:290,rest:true},
+  {frame:4,hold:260,rest:true},
+  {frame:5,hold:620,rest:true}
+];
 let watcherStep=0;
+let watcherWasRaining=rainEnabled;
 function advanceWatcher(){
   if(!watcherFrames.length)return;
-  const pose=watcherCycle[watcherStep];
+  if(watcherWasRaining!==rainEnabled){
+    watcherStep=0;
+    watcherWasRaining=rainEnabled;
+  }
+  const cycle=rainEnabled?rainWatcherCycle:watcherCycle;
+  const pose=cycle[watcherStep];
   watcherRoot?.classList.toggle('is-sipping',!pose.rest);
-  watcherRoot?.style.setProperty('--pose-fade',`${pose.fade}ms`);
-  watcherFrames.forEach((frame,i)=>frame.classList.toggle('is-active',i===pose.frame));
-  watcherStep=(watcherStep+1)%watcherCycle.length;
+  if(watcherFrame)watcherFrame.className=`watcher-frame frame-${pose.frame+1} is-active`;
+  watcherStep=(watcherStep+1)%cycle.length;
   const humanPause=pose.rest&&pose.frame===0?Math.random()*1100:0;
   setTimeout(advanceWatcher,document.hidden?1000:pose.hold+humanPause);
 }
@@ -1284,6 +1600,7 @@ function layout(){
   displacementMap.position.set(app.screen.width/2,app.screen.height/2);
   displacementMap.width=app.screen.width+120;displacementMap.height=app.screen.height+120;
   pondMask.clear().ellipse(pondArea.cx,pondArea.cy,pondArea.rx,pondArea.ry).fill(0xffffff);
+  redrawRainShade();
   redrawCaustics();redrawAmbientLight();redrawWaterTint();buildPondDecor();
   startupLog('Layout completed',{pondArea:{...pondArea},fish:fish.length,turtles:turtles.length,frogs:frogs.length,dragonflies:dragonflies.length});
   if(!document.body.classList.contains('pond-ready')){
@@ -1310,6 +1627,8 @@ app.ticker.add(ticker=>{
     scheduleIdle(()=>loadDeferredKoiTextures().catch(showStartupError),{timeout:2500});
   }
   const delta=Math.min(ticker.deltaTime,2),now=performance.now();
+  updateRain(delta,now);
+  updateLightning(delta,now);
   if(focusedCreature){
     focusedCreature.progress+=(1-focusedCreature.progress)*.09*delta;
     const v=focusedCreature.view,s=focusedCreature.snapshot,appear=focusedCreature.progress;
