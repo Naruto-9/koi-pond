@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#071f22" />
     <title>Koi Garden</title>
+    <script>
+      // Set the initial artwork before CSS is parsed, preventing the evening
+      // fallback from being painted while the pond module starts.
+      (() => {
+        const hour = new Date().getHours();
+        document.documentElement.dataset.time =
+          hour >= 5 && hour < 12 ? "morning" :
+          hour >= 12 && hour < 17 ? "afternoon" :
+          hour >= 17 && hour < 20 ? "evening" : "night";
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Italiana&display=swap" rel="stylesheet" />
@@ -84,6 +95,15 @@
         <button class="character-toggle" id="characterToggle" type="button" aria-label="Switch to boy character">
           <span>CHARACTER</span><strong>GIRL</strong>
         </button>
+        <fieldset class="time-selector" id="timeSelector" aria-label="Pond time of day">
+          <legend>TIME OF DAY</legend>
+          <div>
+            <button type="button" data-time="morning">MORNING</button>
+            <button type="button" data-time="afternoon">AFTERNOON</button>
+            <button type="button" data-time="evening" class="is-active" aria-pressed="true">EVENING</button>
+            <button type="button" data-time="night">NIGHT</button>
+          </div>
+        </fieldset>
       </aside>
     </main>
 
@@ -97,6 +117,7 @@
         <label class="creature-option"><span><strong>Turtles</strong><small>Adult and juvenile pond turtles</small></span><input type="checkbox" data-creature="turtles" checked /><i></i></label>
         <label class="creature-option"><span><strong>Frogs</strong><small>Resting and hopping pond frogs</small></span><input type="checkbox" data-creature="frogs" checked /><i></i></label>
         <label class="creature-option"><span><strong>Dragonflies</strong><small>Hovering visitors above the water</small></span><input type="checkbox" data-creature="dragonflies" checked /><i></i></label>
+        <label class="creature-option"><span><strong>Hummingbirds</strong><small>Hovering garden visitors with rapid wingbeats</small></span><input type="checkbox" data-creature="hummingbirds" checked /><i></i></label>
         <button class="dialog-done" value="close">DONE</button>
       </form>
     </dialog>

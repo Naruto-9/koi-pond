@@ -14,6 +14,9 @@ body {
   color: var(--cream);
   font-family: "DM Sans", sans-serif;
 }
+html[data-time="morning"] body { background-image:url("./assets/pond-water-morning.png"); }
+html[data-time="afternoon"] body { background-image:url("./assets/pond-water-afternoon.png"); }
+html[data-time="night"] body { background-image:url("./assets/pond-water-night.png"); }
 .pond-loader { position:fixed; top:60px; right:22px; z-index:30; display:block; padding:0; background:transparent; pointer-events:none; transition:opacity .36s ease,visibility .36s ease; }
 body.pond-ready .pond-loader { opacity:0; visibility:hidden; transition-delay:2s; }
 .pond-loader__panel { width:min(292px,calc(100vw - 36px)); padding:18px 19px 16px; border:1px solid rgba(255,255,255,.16); background:rgba(9,36,35,.76); box-shadow:0 18px 50px rgba(0,0,0,.22); }
@@ -50,6 +53,9 @@ body.pond-ready .pond-loader { opacity:0; visibility:hidden; transition-delay:2s
   opacity: 0;
   transition: opacity .24s ease-out;
 }
+html[data-time="morning"] #pond { background-image:url("./assets/pond-water-morning.png"); }
+html[data-time="afternoon"] #pond { background-image:url("./assets/pond-water-afternoon.png"); }
+html[data-time="night"] #pond { background-image:url("./assets/pond-water-night.png"); }
 body.pond-ready #pond { opacity: 1; }
 
 .masthead {
@@ -107,6 +113,13 @@ h1 em { color: #b7ae8c; font-weight: 400; }
 .water-toggle[aria-pressed="true"] i::after { transform: translateX(12px); background: #effffb; }
 .creature-button,.character-toggle { grid-column:1 / 4; display:flex; align-items:center; justify-content:space-between; min-height:27px; padding:6px 2px 0; border:0; border-top:1px solid rgba(255,255,255,.1); background:transparent; color:#d8ded6; cursor:pointer; font:500 7px/1 "DM Sans",sans-serif; letter-spacing:.18em; }
 .character-toggle strong { color:#d5cba8; font:500 7px/1 "DM Sans",sans-serif; letter-spacing:.18em; }
+.time-selector { grid-column:1 / 4; min-width:0; margin:0; padding:8px 0 0; border:0; border-top:1px solid rgba(255,255,255,.1); }
+.time-selector legend { float:left; width:100%; margin:0 0 7px; padding:0 2px; color:#d8ded6; font:500 7px/1 "DM Sans",sans-serif; letter-spacing:.18em; }
+.time-selector div { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); clear:both; gap:4px; }
+.time-selector button { min-width:0; padding:6px 3px; border:1px solid rgba(255,255,255,.1); border-radius:3px; background:rgba(0,18,18,.18); color:rgba(216,222,214,.62); cursor:pointer; font:500 6px/1 "DM Sans",sans-serif; letter-spacing:.1em; transition:background .2s,color .2s,border-color .2s; }
+.time-selector button:hover { color:#fff; border-color:rgba(213,203,168,.45); }
+.time-selector button.is-active { color:#f4edda; border-color:rgba(213,203,168,.55); background:rgba(213,203,168,.16); }
+.time-selector button:disabled { cursor:wait; opacity:.55; }
 .creature-dialog { width: min(324px, calc(100vw - 32px)); padding: 0; border: 1px solid rgba(255,255,255,.18); border-radius: 3px; color: #e9eadf; background: rgba(10,35,34,.9); backdrop-filter: blur(22px) saturate(.8); box-shadow: 0 28px 90px rgba(0,0,0,.38); }
 .creature-dialog::backdrop { background: rgba(7,16,15,.35); backdrop-filter: blur(3px); }
 .creature-dialog form { padding: 15px 16px; max-height: min(82vh, 720px); overflow-y: auto; }
@@ -145,6 +158,9 @@ h1 em { color: #b7ae8c; font-weight: 400; }
 
 @media (max-width:700px) and (orientation:portrait) {
   body, #pond { background-image:url("./assets/pond-water-mobile.png"); }
+  html[data-time="morning"] body,html[data-time="morning"] #pond { background-image:url("./assets/pond-water-mobile-morning.png"); }
+  html[data-time="afternoon"] body,html[data-time="afternoon"] #pond { background-image:url("./assets/pond-water-mobile-afternoon.png"); }
+  html[data-time="night"] body,html[data-time="night"] #pond { background-image:url("./assets/pond-water-mobile-night.png"); }
   .menu-button { display:grid; }
   body.controls-open .menu-button span:nth-child(1) { transform:translateY(4px) rotate(45deg); }
   body.controls-open .menu-button span:nth-child(2) { opacity:0; }
