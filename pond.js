@@ -1326,11 +1326,18 @@ if(useMobilePond){
 document.querySelector('#addFish').addEventListener('click',e=>{e.stopPropagation();setKoiCount(fish.length+1)});
 document.querySelector('#removeFish').addEventListener('click',e=>{e.stopPropagation();setKoiCount(fish.length-1)});
 document.querySelector('#fishRange').addEventListener('input',e=>setKoiCount(Number(e.target.value)));
+function setDisplacementScale(filter,x,y){
+  if(!filter?.scale)return;
+  // Pixi preserves object-form constructor scales as plain PointData objects,
+  // so they do not necessarily expose Point#set().
+  filter.scale.x=x;
+  filter.scale.y=y;
+}
 document.querySelector('#waterMotionButton').addEventListener('click',e=>{
-  waterMotionEnhanced=!waterMotionEnhanced;e.currentTarget.setAttribute('aria-pressed',waterMotionEnhanced);
-  fishRefraction?.scale.set(waterMotionEnhanced?5.8:0,waterMotionEnhanced?4.1:0);
-  animalRefraction?.scale.set(waterMotionEnhanced?3.4:0,waterMotionEnhanced?2.5:0);
-  radialRefraction?.scale.set(waterMotionEnhanced?58:0,waterMotionEnhanced?48:0);
+  waterMotionEnhanced=!waterMotionEnhanced;e.currentTarget.setAttribute('aria-pressed',String(waterMotionEnhanced));
+  setDisplacementScale(fishRefraction,waterMotionEnhanced?5.8:0,waterMotionEnhanced?4.1:0);
+  setDisplacementScale(animalRefraction,waterMotionEnhanced?3.4:0,waterMotionEnhanced?2.5:0);
+  setDisplacementScale(radialRefraction,waterMotionEnhanced?58:0,waterMotionEnhanced?48:0);
   waterShadeSprite.visible=waterMotionEnhanced;
   if(!waterMotionEnhanced)clearWaterMotion();
 });
