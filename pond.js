@@ -529,7 +529,7 @@ const musicTracks=[
   {title:'Where Silent Colors Drown',url:whereSilentColorsDrownUrl,artwork:whereSilentColorsDrownArtworkUrl,instrumental:false},
   {title:'Koi in Sunlight',url:koiInSunlightUrl,instrumental:true}
 ];
-let currentTrackIndex=0,trackFilter='vocal';
+let currentTrackIndex=3,trackFilter='instrumental';
 const gardenMusic=new Audio(musicTracks[currentTrackIndex].url);
 gardenMusic.loop=false;
 gardenMusic.preload='auto';
@@ -1650,6 +1650,8 @@ const trackList=document.querySelector('#trackList');
 const playbackSeek=document.querySelector('#playbackSeek');
 const playbackElapsed=document.querySelector('#playbackElapsed');
 const playbackDuration=document.querySelector('#playbackDuration');
+const pillPlaybackProgress=document.querySelector('#pillPlaybackProgress');
+const pillTrackRemaining=document.querySelector('#pillTrackRemaining');
 const trackFilterButtons=[...document.querySelectorAll('[data-track-filter]')];
 const formatPlaybackTime=seconds=>{
   if(!Number.isFinite(seconds)||seconds<0)return '0:00';
@@ -1662,14 +1664,23 @@ function updatePlaybackProgress(){
   const progress=duration?elapsed/duration*100:0;
   playbackSeek.value=String(progress);
   playbackSeek.style.setProperty('--seek-progress',`${progress}%`);
+  pillPlaybackProgress.style.strokeDasharray=`${progress} 100`;
   playbackSeek.setAttribute('aria-valuetext',`${formatPlaybackTime(elapsed)} of ${formatPlaybackTime(duration)}`);
   playbackElapsed.textContent=formatPlaybackTime(elapsed);
   playbackDuration.textContent=formatPlaybackTime(duration);
+  const remaining=Math.max(0,duration-elapsed);
+  pillTrackRemaining.textContent=duration?`−${formatPlaybackTime(remaining)}`:'−–:––';
+  pillTrackRemaining.setAttribute('aria-label',duration?`${formatPlaybackTime(remaining)} remaining in ${musicTracks[currentTrackIndex].title}`:'Song duration loading');
 }
 const visibleTrackIndexes=()=>musicTracks
   .map((track,index)=>({track,index}))
   .filter(({track})=>trackFilter==='all'||(trackFilter==='instrumental'?track.instrumental:!track.instrumental))
   .map(({index})=>index);
+function syncPlaylistLoopMode(){
+  // A one-song view can use the media element's seamless native loop. Larger
+  // playlists advance on `ended`; skipMusicTrack wraps the final item to zero.
+  gardenMusic.loop=visibleTrackIndexes().length===1;
+}
 function renderTrackList(){
   if(!trackList)return;
   trackList.replaceChildren(...visibleTrackIndexes().map(index=>{
@@ -1721,6 +1732,7 @@ document.querySelector('#previousTrack')?.addEventListener('click',()=>skipMusic
 document.querySelector('#nextTrack')?.addEventListener('click',()=>skipMusicTrack(1));
 trackFilterButtons.forEach(button=>button.addEventListener('click',()=>{
   trackFilter=button.dataset.trackFilter;
+  syncPlaylistLoopMode();
   const indexes=visibleTrackIndexes();
   if(!indexes.includes(currentTrackIndex)&&indexes.length){
     selectMusicTrack(indexes[0],{play:!gardenMusic.paused});
@@ -1735,11 +1747,19 @@ playbackSeek.addEventListener('input',()=>{
   gardenMusic.currentTime=Number(playbackSeek.value)/100*gardenMusic.duration;
   updatePlaybackProgress();
 });
+syncPlaylistLoopMode();
 renderTrackList();
 const soundWave=document.querySelector('#soundWave');
 const soundWaveContext=soundWave?.getContext('2d');
 function drawSoundWave(now){
   if(!soundWaveContext||!soundWave){requestAnimationFrame(drawSoundWave);return;}
+  if(pillPlaybackProgress&&Number.isFinite(gardenMusic.duration)&&gardenMusic.duration>0){
+    const pillProgress=Math.max(0,Math.min(100,gardenMusic.currentTime/gardenMusic.duration*100));
+    pillPlaybackProgress.style.strokeDasharray=`${pillProgress} 100`;
+    const remaining=Math.max(0,gardenMusic.duration-gardenMusic.currentTime);
+    const remainingLabel=`−${formatPlaybackTime(remaining)}`;
+    if(pillTrackRemaining.textContent!==remainingLabel)pillTrackRemaining.textContent=remainingLabel;
+  }
   const rect=soundWave.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
   const targetWidth=Math.max(1,Math.round(rect.width*dpr)),targetHeight=Math.max(1,Math.round(rect.height*dpr));
   if(soundWave.width!==targetWidth||soundWave.height!==targetHeight){
@@ -1963,8 +1983,24 @@ startupLog('Creating initial koi');
 for(let i=0;i<10;i++)addKoi(true,i);syncKoiControls();
 startupLog('Initial koi created',{count:fish.length});
 setLoadingStage('koi','complete');setLoadingStage('creatures');
+let lastLayoutWidth=0,lastLayoutHeight=0;
 function layout(){
   startupLog('Layout started',{screen:[app.screen.width,app.screen.height]});
+  const previousWidth=lastLayoutWidth,previousHeight=lastLayoutHeight;
+  if(previousWidth&&previousHeight&&(previousWidth!==app.screen.width||previousHeight!==app.screen.height)){
+    const scaleX=app.screen.width/previousWidth,scaleY=app.screen.height/previousHeight;
+    // Koi persist between layouts, unlike the decor creatures that are rebuilt.
+    // Move their live positions with the viewport so they do not appear stranded
+    // against a newly fitted background after a resize or orientation change.
+    fish.forEach(koi=>{
+      koi.x*=scaleX;koi.y*=scaleY;
+      koi.view.position.set(koi.x,koi.y);
+      koi.shadow.position.set(koi.x,koi.y);
+    });
+    food.forEach(pellet=>{pellet.x*=scaleX;pellet.y*=scaleY;pellet.view?.position.set(pellet.x,pellet.y);});
+    ripples.forEach(ripple=>{ripple.x*=scaleX;ripple.y*=scaleY;ripple.view?.position.set(ripple.x,ripple.y);});
+  }
+  lastLayoutWidth=app.screen.width;lastLayoutHeight=app.screen.height;
   const cover=Math.max(app.screen.width/pondWaterTexture.width,app.screen.height/pondWaterTexture.height);
   water.scale.set(cover);water.position.set(app.screen.width/2,app.screen.height/2);
   refractedWater.scale.set(cover);refractedWater.position.copyFrom(water.position);
@@ -1992,14 +2028,35 @@ function layout(){
   redrawRainShade();
   rebuildWeatherClouds();
   syncWeatherLayerVisibility();
-  redrawCaustics();redrawAmbientLight();redrawWaterTint();buildPondDecor();
+  redrawCaustics();redrawAmbientLight();redrawWaterTint();
+  buildPondDecor();
   startupLog('Layout completed',{pondArea:{...pondArea},fish:fish.length,turtles:turtles.length,frogs:frogs.length,dragonflies:dragonflies.length});
   if(!document.body.classList.contains('pond-ready')){
-    setLoadingStage('creatures','complete');setLoadingStage('water');
+    setLoadingStage('creatures','complete');setLoadingStage('flora');
+    setLoadingStage('flora','complete');setLoadingStage('weather');
+    setLoadingStage('weather','complete');setLoadingStage('visitor');
+    setLoadingStage('visitor','complete');setLoadingStage('music');
+    setLoadingStage('music','complete');setLoadingStage('water');
     setLoadingStage('water','complete');setLoadingStage('ready');
   }
 }
-layout();window.addEventListener('resize',layout);
+layout();
+let pondResizeFrame=0;
+function schedulePondResize(){
+  cancelAnimationFrame(pondResizeFrame);
+  pondResizeFrame=requestAnimationFrame(()=>{
+    pondResizeFrame=0;
+    const width=Math.max(1,document.documentElement.clientWidth);
+    const height=Math.max(1,document.documentElement.clientHeight);
+    // Pixi's resizeTo plugin also responds to this event, but does so on its
+    // own animation frame. Resize explicitly before layout to prevent one frame
+    // of calculations against the previous viewport.
+    if(app.screen.width!==width||app.screen.height!==height)app.renderer.resize(width,height);
+    layout();
+  });
+}
+window.addEventListener('resize',schedulePondResize,{passive:true});
+window.visualViewport?.addEventListener('resize',schedulePondResize,{passive:true});
 document.addEventListener('visibilitychange',()=>document.hidden?app.ticker.stop():app.ticker.start());
 
 let firstRenderedFrame=false;

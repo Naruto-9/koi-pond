@@ -32,6 +32,10 @@
           <li data-load-stage="assets"><i></i><span>Loading garden artwork</span><b></b></li>
           <li data-load-stage="koi"><i></i><span>Adding koi</span><b></b></li>
           <li data-load-stage="creatures"><i></i><span>Adding pond creatures</span><b></b></li>
+          <li data-load-stage="flora"><i></i><span>Planting pond flora</span><b></b></li>
+          <li data-load-stage="weather"><i></i><span>Preparing garden weather</span><b></b></li>
+          <li data-load-stage="visitor"><i></i><span>Waking garden visitor</span><b></b></li>
+          <li data-load-stage="music"><i></i><span>Connecting garden music</span><b></b></li>
           <li data-load-stage="water"><i></i><span>Starting water movement</span><b></b></li>
           <li data-load-stage="ready"><i></i><span>Pond ready</span><b></b></li>
         </ol>
@@ -51,7 +55,11 @@
       </div>
       <div class="masthead-right">
         <canvas class="sound-wave" id="soundWave" width="180" height="112" aria-hidden="true"></canvas>
+        <svg class="pill-playback-border" viewBox="0 0 180 42" preserveAspectRatio="none" aria-hidden="true">
+          <path id="pillPlaybackProgress" pathLength="100" d="M1 21 A20 20 0 0 1 21 1 H159 A20 20 0 0 1 179 21 A20 20 0 0 1 159 41 H21 A20 20 0 0 1 1 21"/>
+        </svg>
         <time class="garden-clock" id="gardenClock" aria-label="Local time">--:--</time>
+        <time class="pill-track-remaining" id="pillTrackRemaining" aria-label="Song time remaining">−–:––</time>
         <div class="sound-control">
         <button class="round-button music-panel-button" id="musicPanelButton" aria-label="Open music controls" aria-controls="musicPanel" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -67,10 +75,10 @@
         </button>
         <div class="volume-panel" id="musicPanel" aria-label="Music controls">
           <span class="track-label">NOW PLAYING</span>
-          <img class="track-artwork" id="trackArtwork" src="./assets/The_Weight_of_Amber-artwork.png" alt="The Weight of Amber cover artwork" />
+          <img class="track-artwork" id="trackArtwork" alt="" hidden />
           <div class="track-heading">
             <button class="track-skip" id="previousTrack" type="button" aria-label="Previous track">‹</button>
-            <strong class="track-name" id="currentTrackName">The Weight of Amber</strong>
+            <strong class="track-name" id="currentTrackName">Koi in Sunlight</strong>
             <button class="track-skip" id="nextTrack" type="button" aria-label="Next track">›</button>
           </div>
           <div class="playback-progress">
@@ -82,8 +90,8 @@
           </div>
           <div class="track-filters" role="group" aria-label="Filter tracks">
             <button type="button" data-track-filter="all" aria-pressed="false">ALL</button>
-            <button type="button" data-track-filter="instrumental" aria-pressed="false">INSTRUMENTAL</button>
-            <button type="button" data-track-filter="vocal" aria-pressed="true">VOCAL</button>
+            <button type="button" data-track-filter="instrumental" aria-pressed="true">INSTRUMENTAL</button>
+            <button type="button" data-track-filter="vocal" aria-pressed="false">VOCAL</button>
           </div>
           <div class="track-list" id="trackList" role="list" aria-label="Available tracks"></div>
           <button class="playback-toggle" id="panelPlaybackButton" type="button" aria-pressed="true">PAUSE MUSIC</button>

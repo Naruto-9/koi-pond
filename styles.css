@@ -74,8 +74,12 @@ body.pond-ready #pond { opacity: 1; }
 }
 .masthead-left { display:flex; align-items:center; gap:7px; pointer-events:auto; }
 .masthead-right { position:relative; display:flex; align-items:center; gap:8px; padding:4px 6px 4px 14px; border:1px solid rgba(255,255,255,.14); border-radius:999px; background:linear-gradient(135deg,rgba(18,43,40,.66),rgba(12,33,32,.54)); pointer-events:auto; backdrop-filter:blur(16px) saturate(.82); box-shadow:0 7px 24px rgba(10,24,23,.16),inset 0 1px rgba(255,255,255,.06); }
+.pill-playback-border { position:absolute; z-index:3; inset:-1px; width:calc(100% + 2px); height:calc(100% + 2px); overflow:visible; fill:none; pointer-events:none; }
+.pill-playback-border path { stroke:rgba(255,255,255,.9); stroke-width:1.15; stroke-linecap:round; stroke-dasharray:0 100; vector-effect:non-scaling-stroke; filter:drop-shadow(0 0 2px rgba(255,255,255,.28)); opacity:.9; }
+.masthead-right:has(#soundButton[aria-pressed="false"]) .pill-playback-border path { opacity:.32; }
 .garden-clock { position:relative; z-index:2; min-width:51px; padding-right:13px; color:#f2ecdc; text-align:center; font:500 9px/1 "DM Sans",sans-serif; letter-spacing:.13em; font-variant-numeric:tabular-nums; text-shadow:0 1px 5px rgba(0,0,0,.42); }
 .garden-clock::after { position:absolute; top:50%; right:0; width:1px; height:18px; background:linear-gradient(transparent,rgba(238,232,216,.34),transparent); content:""; transform:translateY(-50%); }
+.pill-track-remaining { position:relative; z-index:2; min-width:31px; color:rgba(242,236,220,.76); text-align:center; font:500 8px/1 "DM Sans",sans-serif; letter-spacing:.04em; font-variant-numeric:tabular-nums; text-shadow:0 1px 4px rgba(0,0,0,.4); }
 
 .brand { pointer-events: auto; display: flex; align-items: center; gap: 9px; padding: 6px 10px 6px 6px; color: #fffaf0; text-decoration: none; font-size: 8px; letter-spacing: .22em; font-weight: 500; background: rgba(28,35,30,.42); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; backdrop-filter: blur(12px) saturate(.8); box-shadow: 0 4px 18px rgba(25,18,16,.16); text-shadow: 0 1px 5px rgba(0,0,0,.55); }
 .brand-mark { width: 23px; height: 23px; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; display: grid; place-items: center; font-family: serif; font-size: 11px; }
