@@ -4,7 +4,7 @@ import {
   WebGLRenderer, CanvasRenderer
 } from 'pixi.js';
 import 'pixi.js/browser';
-import gardenMusicUrl from './assets/koi-pond-music.mp3';
+import gardenMusicUrl from './assets/Koi_in_Sunlight.mp3';
 
 const startupStartedAt=performance.now();
 let startupStep=0;
@@ -217,12 +217,17 @@ const fish = [], food = [], ripples = [], fishWakes=[], refractionRipples=[];
 let lastWakeAt=0,nextWindAt=performance.now()+7000+Math.random()*7000,windUntil=0,lastWindRipple=0,waterMotionEnhanced=true,greenWaterEnabled=false,waveContrastEnabled=false;
 const rainShade=new Graphics();
 rainShade.blendMode='multiply';rainShade.visible=false;weatherLayer.addChild(rainShade);
+const cloudLayer=new Container();
+cloudLayer.visible=false;weatherLayer.addChild(cloudLayer);
+if(!isCanvasRenderer)cloudLayer.filters=[new BlurFilter({strength:28,quality:2})];
 const lightningFlash=new Graphics();
 lightningFlash.blendMode='screen';lightningFlash.visible=false;weatherLayer.addChild(lightningFlash);
 if(!isCanvasRenderer)lightningFlash.filters=[new BlurFilter({strength:52,quality:3})];
 const lightningBolt=new Graphics();
 lightningBolt.visible=false;weatherLayer.addChild(lightningBolt);
 const rainDrops=[],rainImpacts=[];
+const weatherClouds=[];
+let cloudyEnabled=false,cloudyManualOverride=false;
 let rainEnabled=false,rainManualOverride=false,lastRainImpact=0;
 let lightningEnabled=false,lightningManualOverride=false,lightningAge=-1,nextLightningAt=performance.now()+2600;
 rainLayer.visible=false;
@@ -232,7 +237,51 @@ function redrawRainShade(){
     .fill({color:0x42606a,alpha:.42});
 }
 function syncWeatherLayerVisibility(){
-  rainShade.visible=rainEnabled||lightningEnabled;
+  const weatherDarkened=cloudyEnabled||rainEnabled||lightningEnabled;
+  rainShade.visible=weatherDarkened;
+  rainShade.alpha=rainEnabled ? 1 : lightningEnabled ? .88 : .34;
+  cloudLayer.visible=weatherDarkened;
+}
+function rebuildWeatherClouds(){
+  cloudLayer.removeChildren().forEach(child=>child.destroy());
+  weatherClouds.length=0;
+  const count=useMobilePond?5:7;
+  const baseSize=Math.max(190,Math.min(560,app.screen.width*.31));
+  for(let i=0;i<count;i++){
+    const size=baseSize*(.78+Math.random()*.48);
+    const view=new Graphics()
+      .ellipse(-size*.34,0,size*.38,size*.095).fill({color:0xa7b0b1,alpha:.16})
+      .ellipse(-size*.09,-size*.05,size*.33,size*.12).fill({color:0xb5bcbd,alpha:.18})
+      .ellipse(size*.25,-size*.012,size*.4,size*.105).fill({color:0x98a4a7,alpha:.15})
+      .ellipse(0,size*.035,size*.72,size*.09).fill({color:0x89979a,alpha:.13});
+    view.blendMode='normal';
+    const x=(i/(count-1))*app.screen.width+(Math.random()-.5)*baseSize*.7;
+    const baseY=app.screen.height*(.025+Math.random()*.18);
+    view.position.set(x,baseY);cloudLayer.addChild(view);
+    weatherClouds.push({view,size,baseY,speed:.012+Math.random()*.016,phase:Math.random()*Math.PI*2});
+  }
+}
+function updateWeatherClouds(delta,now){
+  if(!cloudLayer.visible)return;
+  for(const cloud of weatherClouds){
+    cloud.view.x+=cloud.speed*delta;
+    cloud.view.y=cloud.baseY+Math.sin(now*.00011+cloud.phase)*4;
+    if(cloud.view.x-cloud.size>app.screen.width){
+      cloud.view.x=-cloud.size;
+      cloud.baseY=app.screen.height*(.035+Math.random()*.13);
+    }
+  }
+}
+function setCloudyEnabled(enabled,{manual=false,weatherLabel=''}={}){
+  cloudyEnabled=Boolean(enabled);
+  if(manual)cloudyManualOverride=true;
+  if(!weatherClouds.length)rebuildWeatherClouds();
+  syncWeatherLayerVisibility();
+  document.body.classList.toggle('is-cloudy',cloudyEnabled);
+  const button=document.querySelector('#cloudyButton');
+  button?.setAttribute('aria-pressed',String(cloudyEnabled));
+  button?.setAttribute('aria-label',`${cloudyEnabled?'Disable':'Enable'} cloudy atmosphere${weatherLabel?`. Tai Seng weather: ${weatherLabel}`:''}`);
+  if(button&&weatherLabel)button.title=`Tai Seng weather: ${weatherLabel}`;
 }
 function resetRainDrop(drop,initial=false){
   drop.y=-18-Math.random()*app.screen.height*(initial?1:.35);
@@ -428,7 +477,7 @@ function updateRain(delta,now){
   }
   updateRainImpacts(delta);
 }
-const creatureVisibility={koi:true,turtles:true,frogs:true,dragonflies:true,hummingbirds:true,plants:true};
+const creatureVisibility={koi:true,turtles:true,frogs:true,dragonflies:true,hummingbirds:true,rabbits:true,plants:true};
 let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
 let audioOn=true,userVolume=.78;
@@ -438,6 +487,25 @@ gardenMusic.preload='auto';
 gardenMusic.volume=userVolume;
 gardenMusic.autoplay=true;
 gardenMusic.playsInline=true;
+let musicAudioContext=null,musicAnalyser=null,musicMediaSource=null;
+let audioFrequencyData=null,audioTimeData=null;
+async function enableMusicAnalysis(){
+  if(!musicAudioContext){
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContextClass)return false;
+    musicAudioContext=new AudioContextClass();
+    musicAnalyser=musicAudioContext.createAnalyser();
+    musicAnalyser.fftSize=512;
+    musicAnalyser.smoothingTimeConstant=.76;
+    musicMediaSource=musicAudioContext.createMediaElementSource(gardenMusic);
+    musicMediaSource.connect(musicAnalyser);
+    musicAnalyser.connect(musicAudioContext.destination);
+    audioFrequencyData=new Uint8Array(musicAnalyser.frequencyBinCount);
+    audioTimeData=new Uint8Array(musicAnalyser.fftSize);
+  }
+  if(musicAudioContext.state==='suspended')await musicAudioContext.resume();
+  return musicAudioContext.state==='running';
+}
 function removeEarlyAudioUnlock(){
   window.removeEventListener('pointerdown',earlyAudioUnlock,true);
   window.removeEventListener('touchstart',earlyAudioUnlock,true);
@@ -445,8 +513,15 @@ function removeEarlyAudioUnlock(){
 }
 function earlyAudioUnlock(event){
   if(event?.target?.closest?.('#soundButton'))return;
-  if(!audioOn||!gardenMusic.paused){removeEarlyAudioUnlock();return;}
-  gardenMusic.play().then(removeEarlyAudioUnlock).catch(()=>{});
+  if(!audioOn){removeEarlyAudioUnlock();return;}
+  if(!gardenMusic.paused){
+    enableMusicAnalysis().then(removeEarlyAudioUnlock).catch(()=>{});
+    return;
+  }
+  enableMusicAnalysis()
+    .then(()=>gardenMusic.play())
+    .then(removeEarlyAudioUnlock)
+    .catch(()=>{});
 }
 // Register before pond assets load so an early tap is not lost while the
 // renderer and high-resolution artwork are still initializing.
@@ -461,6 +536,7 @@ const bundledAssets=import.meta.glob([
   './assets/pellet-1[0-2].png',
   './assets/dragonfly.png',
   './assets/hummingbird.png',
+  './assets/rabbit-sheet.png',
   './assets/cardinal-flower.png',
   './assets/canna-lily.png',
   './assets/water-iris.png',
@@ -518,6 +594,14 @@ function timeOfDayFromDate(date=new Date()){
 }
 const initialTimeOfDay=document.documentElement.dataset.time||timeOfDayFromDate();
 const mobileContentScale=useMobilePond?.5:1;
+const CREATURE_SPEED_REFERENCE_WIDTH=1920;
+let creatureSpeedMultiplier=1;
+function creatureTravelScale(){
+  // Preserve the perceived traversal time of the current desktop design.
+  // A 390px-wide phone therefore travels at roughly 20% of desktop pixels
+  // per frame instead of crossing its smaller pond several times faster.
+  return Math.max(.18,Math.min(1.35,app.screen.width/CREATURE_SPEED_REFERENCE_WIDTH))*creatureSpeedMultiplier;
+}
 const [
   koiTextures,
   frogTexture,
@@ -529,6 +613,7 @@ const [
   pebbleTextures,
   dragonflyTexture,
   hummingbirdTexture,
+  rabbitSheetTexture,
   bankPlantTextures,
   pelletTextures
 ]=await Promise.all([
@@ -542,6 +627,7 @@ const [
   Promise.all([1,2,3,4,5,6].map(i=>loadPondAsset(`pebble-${i}.png`))),
   loadPondAsset('dragonfly.png'),
   loadPondAsset('hummingbird.png'),
+  loadPondAsset('rabbit-sheet.png'),
   Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset)),
   Promise.all(Array.from({length:12},(_,i)=>loadPondAsset(`pellet-${i+1}.png`)))
 ]);
@@ -568,7 +654,22 @@ async function loadDeferredKoiTextures(){
   }
   startupLog('Deferred koi textures loaded',{count:koiTextures.length});
 }
-const turtles=[],frogs=[],floaters=[],dragonflies=[],hummingbirds=[],nectarTargets=[];
+const turtles=[],frogs=[],floaters=[],dragonflies=[],hummingbirds=[],rabbits=[],nectarTargets=[];
+
+function makeRabbitFrames(){
+  const source=rabbitSheetTexture.source,img=source.resource;
+  const cellW=source.width/4,cellH=source.height/2;
+  return Array.from({length:8},(_,index)=>{
+    const pad=3,c=document.createElement('canvas');
+    c.width=Math.ceil(cellW)+pad*2;c.height=Math.ceil(cellH)+pad*2;
+    c.getContext('2d').drawImage(
+      img,(index%4)*cellW,Math.floor(index/4)*cellH,cellW,cellH,
+      pad,pad,cellW,cellH
+    );
+    return Texture.from(c);
+  });
+}
+const rabbitFrames=makeRabbitFrames();
 
 function makeDragonfly(){
   const source=dragonflyTexture.source,img=source.resource,w=source.width,h=source.height;
@@ -768,7 +869,7 @@ function clearWaterMotion(){
 function buildPondDecor(){
   if(returningCreature)finishCreatureReturn();
   if(focusedCreature&&focusedCreature.kind!=='koi')clearCreatureFocus(false);
-  turtles.length=0;frogs.length=0;floaters.length=0;dragonflies.length=0;hummingbirds.length=0;
+  turtles.length=0;frogs.length=0;floaters.length=0;dragonflies.length=0;hummingbirds.length=0;rabbits.length=0;
   shorelineLayer.removeChildren().forEach(child=>child.destroy());
   bankPlantLayer.removeChildren().forEach(child=>child.destroy());
   nectarTargets.length=0;
@@ -870,6 +971,24 @@ function buildPondDecor(){
     mode:'hover',timer:130+Math.random()*120,hoverX:hummingbirdView.x,hoverY:hummingbirdView.y,
     velocityX:0,velocityY:0
   });
+  const rabbit=new Sprite(rabbitFrames[0]);rabbit.anchor.set(.5,.82);
+  const rabbitScale=(useMobilePond?.115:.19)*mobileContentScale;
+  // Keep every waypoint on one continuous upper-bank corridor. Previously,
+  // independently chosen shoreline points allowed the straight hop chord to
+  // cut across the water even though both endpoints were on land.
+  const bankY=Math.max(48*mobileContentScale,pondArea.cy-pondArea.ry-34*mobileContentScale);
+  const minBankX=Math.max(54*mobileContentScale,pondArea.cx-pondArea.rx*.12);
+  const maxBankX=Math.min(w-54*mobileContentScale,pondArea.cx+pondArea.rx*.92);
+  const rabbitWaypoints=[.08,.36,.64,.92].map(t=>({x:minBankX+(maxBankX-minBankX)*t,y:bankY}));
+  rabbit.position.set(rabbitWaypoints[3].x,rabbitWaypoints[3].y);
+  rabbit.scale.set(rabbitScale);rabbit.alpha=.92;bankPlantLayer.addChild(rabbit);
+  addInspectable(rabbit,'rabbits','Garden Rabbit','GARDEN VISITOR','A rabbit moves in short, powerful bounds separated by long attentive pauses. Its ears constantly sample the garden for sound while its nose and whiskers inspect sheltered pond-side plants.');
+  rabbits.push({
+    view:rabbit,frames:rabbitFrames,waypoints:rabbitWaypoints,waypoint:0,
+    mode:'rest',timer:150+Math.random()*180,frame:0,frameClock:0,
+    fromX:rabbit.x,fromY:rabbit.y,toX:rabbit.x,toY:rabbit.y,progress:0,
+    duration:38,baseScale:rabbitScale,facing:1
+  });
   applyCreatureVisibility();
 }
 
@@ -879,6 +998,7 @@ function applyCreatureVisibility(){
   frogs.forEach(f=>f.view.visible=creatureVisibility.frogs);
   dragonflies.forEach(v=>v.view.visible=creatureVisibility.dragonflies);
   hummingbirds.forEach(v=>v.view.visible=creatureVisibility.hummingbirds);
+  rabbits.forEach(v=>v.view.visible=creatureVisibility.rabbits);
   if(focusedCreature&&!creatureVisibility[focusedCreature.kind])clearCreatureFocus(false);
 }
 
@@ -957,6 +1077,15 @@ function constrainToPond(x,y,padding=0){
   const rx=Math.max(1,pondArea.rx-padding),ry=Math.max(1,pondArea.ry-padding);
   const nx=(x-pondArea.cx)/rx,ny=(y-pondArea.cy)/ry,d=Math.hypot(nx,ny);
   if(d<=1)return{x,y};return{x:pondArea.cx+nx/d*rx,y:pondArea.cy+ny/d*ry};
+}
+function constrainOutsidePond(x,y,clearance=0){
+  const rx=pondArea.rx+clearance,ry=pondArea.ry+clearance;
+  const nx=(x-pondArea.cx)/rx,ny=(y-pondArea.cy)/ry,d=Math.hypot(nx,ny);
+  if(d>=1)return{x,y};
+  // A point exactly at the centre has no usable outward direction. The
+  // rabbit's bank route is above the pond, so use the upper bank as fallback.
+  if(d<.0001)return{x:pondArea.cx,y:pondArea.cy-ry};
+  return{x:pondArea.cx+nx/d*rx,y:pondArea.cy+ny/d*ry};
 }
 
 const caustics = new Graphics();
@@ -1172,7 +1301,7 @@ class Koi {
       const boundaryTurn=target?.0025:.012;
       this.angle+=angleDiff(desired,this.angle)*(boundaryTurn+Math.max(0,boundary-.86)*(target?.012:.08))*delta;
     }
-    const travelScale=useMobilePond?.55:1;
+    const travelScale=creatureTravelScale();
     this.x+=Math.cos(this.angle)*this.speed*delta*travelScale;this.y+=Math.sin(this.angle)*this.speed*delta*travelScale;
     if(!insidePond(this.x,this.y,48)){const safe=constrainToPond(this.x,this.y,48);this.x=safe.x;this.y=safe.y;}
     this.strokeIntensity+=(desiredStroke-this.strokeIntensity)*.045*delta;
@@ -1349,11 +1478,27 @@ document.querySelector('#waveContrastButton').addEventListener('click',e=>{
   waveContrastEnabled=!waveContrastEnabled;e.currentTarget.setAttribute('aria-pressed',waveContrastEnabled);
   waterShadeSprite.alpha=waveContrastEnabled?.68:.46;
 });
+document.querySelector('#cloudyButton').addEventListener('click',()=>{
+  setCloudyEnabled(!cloudyEnabled,{manual:true});
+});
 document.querySelector('#rainButton').addEventListener('click',()=>{
   setRainEnabled(!rainEnabled,{manual:true});
 });
 document.querySelector('#lightningButton').addEventListener('click',()=>{
   setLightningEnabled(!lightningEnabled,{manual:true});
+});
+const creatureSpeedLevels=[
+  {label:'SLOW',value:.6},
+  {label:'NORMAL',value:1},
+  {label:'FAST',value:1.5}
+];
+let creatureSpeedLevel=1;
+document.querySelector('#creatureSpeedButton')?.addEventListener('click',event=>{
+  creatureSpeedLevel=(creatureSpeedLevel+1)%creatureSpeedLevels.length;
+  const level=creatureSpeedLevels[creatureSpeedLevel];
+  creatureSpeedMultiplier=level.value;
+  event.currentTarget.querySelector('strong').textContent=level.label;
+  event.currentTarget.setAttribute('aria-label',`Creature movement speed: ${level.label.toLowerCase()}`);
 });
 function weatherCodeLabel(code){
   if(code===0)return 'Clear';
@@ -1384,6 +1529,7 @@ async function syncTaiSengRain(){
     const precipitation=Number(current.precipitation)||0;
     const raining=precipitation>0||[51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(code);
     const thunderstorm=[95,96,99].includes(code);
+    const cloudy=[1,2,3,45,48,51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(code);
     const condition=weatherCodeLabel(code);
     const temperature=Number(current.temperature_2m);
     const temperatureLabel=Number.isFinite(temperature)?`${Math.round(temperature)}°C`:'--°';
@@ -1398,6 +1544,11 @@ async function syncTaiSengRain(){
       const button=document.querySelector('#rainButton');
       if(button)button.title=`Tai Seng weather: ${label} · manually overridden`;
     }
+    if(!cloudyManualOverride)setCloudyEnabled(cloudy,{weatherLabel:label});
+    else{
+      const button=document.querySelector('#cloudyButton');
+      if(button)button.title=`Tai Seng weather: ${label} · manually overridden`;
+    }
     if(!lightningManualOverride)setLightningEnabled(thunderstorm,{weatherLabel:label});
     else{
       const button=document.querySelector('#lightningButton');
@@ -1409,6 +1560,8 @@ async function syncTaiSengRain(){
     if(button)button.title='Weather unavailable · rain can be controlled manually';
     const lightningButton=document.querySelector('#lightningButton');
     if(lightningButton)lightningButton.title='Weather unavailable · lightning can be controlled manually';
+    const cloudyButton=document.querySelector('#cloudyButton');
+    if(cloudyButton)cloudyButton.title='Weather unavailable · clouds can be controlled manually';
     const weatherOutput=document.querySelector('#taiSengWeather');
     if(weatherOutput){weatherOutput.value='UNAVAILABLE';weatherOutput.title='Tai Seng weather is temporarily unavailable';}
   }
@@ -1436,6 +1589,70 @@ window.addEventListener('pointerdown',event=>{
 const soundButton=document.querySelector('#soundButton');
 const soundControl=document.querySelector('.sound-control');
 const volumeSlider=document.querySelector('#volumeSlider');
+const soundWave=document.querySelector('#soundWave');
+const soundWaveContext=soundWave?.getContext('2d');
+function drawSoundWave(now){
+  if(!soundWaveContext||!soundWave){requestAnimationFrame(drawSoundWave);return;}
+  const rect=soundWave.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
+  const targetWidth=Math.max(1,Math.round(rect.width*dpr)),targetHeight=Math.max(1,Math.round(rect.height*dpr));
+  if(soundWave.width!==targetWidth||soundWave.height!==targetHeight){
+    soundWave.width=targetWidth;soundWave.height=targetHeight;
+  }
+  const ctx=soundWaveContext,w=soundWave.width,h=soundWave.height;
+  ctx.clearRect(0,0,w,h);
+  const playing=!gardenMusic.paused&&audioOn;
+  let bass=0,mid=0,treble=0,transient=0;
+  if(playing&&musicAnalyser&&audioFrequencyData&&audioTimeData){
+    musicAnalyser.getByteFrequencyData(audioFrequencyData);
+    musicAnalyser.getByteTimeDomainData(audioTimeData);
+    const sampleBand=(from,to)=>{
+      let total=0,count=0;
+      for(let i=from;i<Math.min(to,audioFrequencyData.length);i++){total+=audioFrequencyData[i];count++;}
+      return count?total/count/255:0;
+    };
+    bass=sampleBand(1,12);mid=sampleBand(12,54);treble=sampleBand(54,150);
+    let peak=0;
+    for(let i=0;i<audioTimeData.length;i++)peak=Math.max(peak,Math.abs(audioTimeData[i]-128)/128);
+    transient=peak;
+  }
+  const energy=playing?Math.min(1,.06+bass*.72+mid*.42+treble*.18):0;
+  if(energy>.01){
+    const time=(gardenMusic.currentTime||now*.001)*2.15;
+    ctx.globalCompositeOperation='source-over';
+    // Five perspective rings echo the pond's own ripples. Bass expands the
+    // whole surface, mids create travelling undulations, and treble lights
+    // restrained gold accents instead of changing the silhouette.
+    for(let ring=0;ring<5;ring++){
+      const radius=(ring+1)/5,points=18+ring*7;
+      const ringPulse=(bass*.12+transient*.055)*Math.sin(time*1.3-ring*.72);
+      for(let point=0;point<points;point++){
+        const angle=point/points*Math.PI*2;
+        const travelling=Math.sin(angle*3-time*2.05+ring*.82)*mid*.075;
+        const r=radius+ringPulse*(1-radius*.36)+travelling;
+        const x=w*.5+Math.cos(angle)*w*.37*r;
+        const y=h*.47+Math.sin(angle)*h*.235*r
+          -Math.sin(angle*2-time*2.7+ring)*treble*h*.018;
+        const front=.45+.55*(Math.sin(angle)+1)/2;
+        const accent=Math.max(0,Math.sin(angle*5+time*3.8-ring))*treble;
+        const alpha=(.18+energy*.58)*front*(.72+accent*.28);
+        const size=(.58+front*.55+accent*.62)*dpr;
+        ctx.beginPath();ctx.arc(x,y,size,0,Math.PI*2);
+        ctx.fillStyle=accent>.34
+          ? `rgba(224,194,124,${Math.min(.9,alpha+.12)})`
+          : `rgba(113,207,190,${alpha})`;
+        ctx.fill();
+      }
+    }
+    const centrePulse=(2.2+bass*4.8+transient*2.2)*dpr;
+    const centreGlow=ctx.createRadialGradient(w*.5,h*.47,0,w*.5,h*.47,centrePulse*2.8);
+    centreGlow.addColorStop(0,`rgba(211,190,132,${.12+treble*.3})`);
+    centreGlow.addColorStop(1,'rgba(82,190,174,0)');
+    ctx.fillStyle=centreGlow;ctx.beginPath();ctx.arc(w*.5,h*.47,centrePulse*2.8,0,Math.PI*2);ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+  }
+  requestAnimationFrame(drawSoundWave);
+}
+requestAnimationFrame(drawSoundWave);
 function reflectAudioState(playing){
   audioOn=playing;
   soundButton.setAttribute('aria-pressed',playing);
@@ -1446,13 +1663,14 @@ gardenMusic.addEventListener('pause',()=>reflectAudioState(false));
 soundButton.addEventListener('click',async()=>{
   soundControl.classList.add('is-open');
   if(gardenMusic.paused){
-    try{await startAmbientSoundscape();reflectAudioState(true);}
+    try{await enableMusicAnalysis();await startAmbientSoundscape();reflectAudioState(true);}
     catch(error){reflectAudioState(false);console.warn('[KOI AUDIO] Playback failed',error);}
   }else{
     stopAmbientSoundscape();reflectAudioState(false);
   }
 });
 volumeSlider.addEventListener('input',()=>{
+  enableMusicAnalysis().catch(()=>{});
   userVolume=Number(volumeSlider.value);
   gardenMusic.volume=userVolume;
 });
@@ -1476,9 +1694,9 @@ startAmbientSoundscape().catch(error=>{
 });
 const unlockMusic=event=>{
   if(event.target.closest?.('#soundButton'))return;
-  if(audioOn&&gardenMusic.paused)startAmbientSoundscape().catch(error=>{
-    console.warn('[KOI AUDIO] Interaction unlock failed',error);
-  });
+  if(audioOn)enableMusicAnalysis()
+    .then(()=>gardenMusic.paused?startAmbientSoundscape():undefined)
+    .catch(error=>console.warn('[KOI AUDIO] Interaction unlock failed',error));
 };
 window.addEventListener('pointerdown',unlockMusic,{capture:true});
 window.addEventListener('touchstart',unlockMusic,{capture:true,passive:true});
@@ -1608,6 +1826,8 @@ function layout(){
   displacementMap.width=app.screen.width+120;displacementMap.height=app.screen.height+120;
   pondMask.clear().ellipse(pondArea.cx,pondArea.cy,pondArea.rx,pondArea.ry).fill(0xffffff);
   redrawRainShade();
+  rebuildWeatherClouds();
+  syncWeatherLayerVisibility();
   redrawCaustics();redrawAmbientLight();redrawWaterTint();buildPondDecor();
   startupLog('Layout completed',{pondArea:{...pondArea},fish:fish.length,turtles:turtles.length,frogs:frogs.length,dragonflies:dragonflies.length});
   if(!document.body.classList.contains('pond-ready')){
@@ -1634,6 +1854,7 @@ app.ticker.add(ticker=>{
     scheduleIdle(()=>loadDeferredKoiTextures().catch(showStartupError),{timeout:2500});
   }
   const delta=Math.min(ticker.deltaTime,2),now=performance.now();
+  updateWeatherClouds(delta,now);
   updateRain(delta,now);
   updateLightning(delta,now);
   if(focusedCreature){
@@ -1715,7 +1936,8 @@ app.ticker.add(ticker=>{
     if(focusedCreature?.view===t.view||returningCreature?.view===t.view)return;
     t.heading+=Math.sin(now*.00023+t.turnSeed)*.00045*delta;
     if(pondDistance(t.view.x,t.view.y,42)>.84){const home=Math.atan2(pondArea.cy-t.view.y,pondArea.cx-t.view.x);t.heading+=angleDiff(home,t.heading)*.018*delta;}
-    t.view.x+=Math.cos(t.heading)*t.speed*delta;t.view.y+=Math.sin(t.heading)*t.speed*delta;
+    const travelScale=creatureTravelScale();
+    t.view.x+=Math.cos(t.heading)*t.speed*delta*travelScale;t.view.y+=Math.sin(t.heading)*t.speed*delta*travelScale;
     if(!insidePond(t.view.x,t.view.y,35)){const safe=constrainToPond(t.view.x,t.view.y,35);t.view.position.set(safe.x,safe.y);}
     t.view.rotation=t.heading+Math.PI/2+Math.sin(now*.0008+t.phase)*.025;
     const paddle=Math.sin(now*t.strokeRate+t.phase);
@@ -1763,7 +1985,8 @@ app.ticker.add(ticker=>{
         f.targetPad=(available[Math.floor(Math.random()*available.length)]||{view:f.carrier}).view;
         const a=Math.atan2(f.targetPad.y-f.view.y,f.targetPad.x-f.view.x);f.heading=a;
         f.fromX=f.view.x;f.fromY=f.view.y;f.toX=f.view.x+Math.cos(a)*55*mobileContentScale;f.toY=f.view.y+Math.sin(a)*55*mobileContentScale;
-        f.view.rotation=a+Math.PI/2;f.mode='dive';f.progress=0;f.duration=26;
+        f.view.rotation=a+Math.PI/2;f.mode='dive';f.progress=0;
+        f.duration=26*Math.max(1,mobileContentScale/creatureTravelScale());
       }
     }else if(f.mode==='dive'){
       f.progress+=delta/f.duration;const p=Math.min(1,f.progress),ease=p*p*(3-2*p),lift=Math.sin(p*Math.PI);
@@ -1789,13 +2012,13 @@ app.ticker.add(ticker=>{
         else limb.view.rotation=limb.side*(limb.rest+recovery*.5-power*.92-glide*.18);
       });
       // A frog's kick is a brief, decisive burst rather than a slow cruise.
-      const speed=(.32+power*2.35+glide*.52)*5;
+      const speed=(.32+power*2.35+glide*.52)*5*creatureTravelScale();
       f.view.x+=Math.cos(f.heading)*speed*delta;f.view.y+=Math.sin(f.heading)*speed*delta;
       const distance=Math.hypot(tx-f.view.x,ty-f.view.y);
       if(distance<105*mobileContentScale){
         // Begin outside the leaf footprint. This is the reverse of the
         // pad-to-water dive, so the frog can never emerge through the pad.
-        f.mode='climb';f.progress=0;f.duration=24;f.fromX=f.view.x;f.fromY=f.view.y;f.carrier=f.targetPad;f.climbContact=false;
+        f.mode='climb';f.progress=0;f.duration=24*Math.max(1,mobileContentScale/creatureTravelScale());f.fromX=f.view.x;f.fromY=f.view.y;f.carrier=f.targetPad;f.climbContact=false;
         f.swimFrames.forEach((frame,index)=>{frame.visible=index===f.swimFrames.length-1;frame.alpha=1;});
         disturbWater(f.view.x,f.view.y,.055,8,f.heading);
       }else if(f.timer<=0){
@@ -1860,7 +2083,7 @@ app.ticker.add(ticker=>{
       d.targetX=app.screen.width*(.25+Math.random()*.5);d.targetY=app.screen.height*(.2+Math.random()*.6);d.timer=260;
     }
     const desired=Math.atan2(d.targetY-d.view.y,d.targetX-d.view.x);d.heading+=angleDiff(desired,d.heading)*.06*delta;
-    const dist=Math.hypot(d.targetX-d.view.x,d.targetY-d.view.y),speed=Math.min(1.18,.32+dist*.008);
+    const dist=Math.hypot(d.targetX-d.view.x,d.targetY-d.view.y),speed=Math.min(1.18,.32+dist*.008)*creatureTravelScale();
     d.view.x+=Math.cos(d.heading)*speed*delta;d.view.y+=Math.sin(d.heading)*speed*delta;d.view.rotation=d.heading+Math.PI/2;
     if(d.touchProgress<0&&d.touchTimer<=0&&insidePond(d.view.x,d.view.y,20)){
       d.touchProgress=0;d.touchMade=false;d.touchTimer=680+Math.random()*620;
@@ -1926,7 +2149,7 @@ app.ticker.add(ticker=>{
       const dx=b.targetX-b.view.x,dy=b.targetY-b.view.y,dist=Math.hypot(dx,dy);
       const desiredHeading=Math.atan2(dy,dx);
       b.heading+=angleDiff(desiredHeading,b.heading)*.18*delta;
-      const speed=Math.min(3.25,.55+dist*.028);
+      const speed=Math.min(3.25,.55+dist*.028)*creatureTravelScale();
       b.velocityX+=(Math.cos(b.heading)*speed-b.velocityX)*.24*delta;
       b.velocityY+=(Math.sin(b.heading)*speed-b.velocityY)*.24*delta;
       b.view.x+=b.velocityX*delta;b.view.y+=b.velocityY*delta;
@@ -1950,6 +2173,44 @@ app.ticker.add(ticker=>{
     });
     const pitch=Math.min(1,motion/2.5);
     b.view.scale.set(b.baseScale*(1-pitch*.035),b.baseScale*(1+pitch*.025));
+  });
+  if(creatureVisibility.rabbits)rabbits.forEach(r=>{
+    if(focusedCreature?.view===r.view||returningCreature?.view===r.view)return;
+    r.timer-=delta;
+    if(r.mode==='rest'){
+      r.frameClock+=delta;
+      // Mostly still: occasional sniff, attentive ears, then back to the
+      // compact resting silhouette. Rabbits do not pace continuously.
+      const cycle=r.frameClock%210;
+      r.frame=cycle<22?2:cycle>112&&cycle<139?1:cycle>170&&cycle<185?7:0;
+      r.view.texture=r.frames[r.frame];
+      const breath=Math.sin(now*.0017)*.006;
+      r.view.scale.set(r.baseScale*r.facing,r.baseScale*(1-breath));
+      if(r.timer<=0){
+        r.waypoint=(r.waypoint+1+Math.floor(Math.random()*(r.waypoints.length-1)))%r.waypoints.length;
+        const target=r.waypoints[r.waypoint];
+        r.fromX=r.view.x;r.fromY=r.view.y;r.toX=target.x;r.toY=target.y;
+        r.facing=r.toX>=r.fromX?1:-1;r.progress=0;r.mode='hop';
+        const distance=Math.hypot(r.toX-r.fromX,r.toY-r.fromY);
+        r.duration=Math.max(34,distance/(2.8*creatureTravelScale()));
+      }
+    }else{
+      r.progress+=delta/r.duration;
+      const p=Math.min(1,r.progress),arc=Math.sin(p*Math.PI);
+      const ease=p*p*(3-2*p);
+      r.view.x=r.fromX+(r.toX-r.fromX)*ease;
+      r.view.y=r.fromY+(r.toY-r.fromY)*ease-arc*28*mobileContentScale;
+      const landSafe=constrainOutsidePond(r.view.x,r.view.y,28*mobileContentScale);
+      r.view.position.set(landSafe.x,landSafe.y);
+      const frame=p<.14?3:p<.34?4:p<.64?5:p<.86?6:7;
+      if(frame!==r.frame){r.frame=frame;r.view.texture=r.frames[frame];}
+      const stretch=Math.sin(p*Math.PI);
+      r.view.scale.set(r.baseScale*r.facing*(1+stretch*.035),r.baseScale*(1-stretch*.045));
+      if(p>=1){
+        r.mode='rest';r.timer=170+Math.random()*310;r.frameClock=0;r.frame=0;
+        r.view.texture=r.frames[0];r.view.scale.set(r.baseScale*r.facing,r.baseScale);
+      }
+    }
   });
   caustics.alpha=.62+Math.sin(now*.0005)*.18+(windActive?.12:0);
   caustics.x=Math.sin(now*.00017)*9+(windActive?Math.sin(now*.003)*4:0);caustics.y=Math.cos(now*.00013)*5;

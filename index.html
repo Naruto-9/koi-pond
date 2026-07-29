@@ -50,6 +50,7 @@
       </button>
       </div>
       <div class="masthead-right">
+        <canvas class="sound-wave" id="soundWave" width="180" height="112" aria-hidden="true"></canvas>
         <time class="garden-clock" id="gardenClock" aria-label="Local time">--:--</time>
         <div class="sound-control">
         <button class="round-button" id="soundButton" aria-label="Mute pond music" aria-pressed="true">
@@ -59,7 +60,12 @@
             <path class="mute-mark" d="m16 10 5 5m0-5-5 5"/>
           </svg>
         </button>
-        <label class="volume-panel" for="volumeSlider"><span>VOLUME</span><input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.78" /></label>
+        <label class="volume-panel" for="volumeSlider">
+          <span class="track-label">NOW PLAYING</span>
+          <strong class="track-name">Koi in Sunlight</strong>
+          <span class="volume-label">VOLUME</span>
+          <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.78" aria-label="Koi in Sunlight volume" />
+        </label>
         </div>
       </div>
     </header>
@@ -92,6 +98,9 @@
         <button class="water-toggle" id="waveContrastButton" type="button" aria-pressed="false">
           <span>WAVE CONTRAST</span><i aria-hidden="true"></i>
         </button>
+        <button class="water-toggle" id="cloudyButton" type="button" aria-pressed="false" title="Cloud cover follows Tai Seng weather">
+          <span>CLOUDY</span><i aria-hidden="true"></i>
+        </button>
         <button class="water-toggle" id="rainButton" type="button" aria-pressed="false" title="Weather for Tai Seng, Singapore">
           <span>RAIN</span><i aria-hidden="true"></i>
         </button>
@@ -104,6 +113,9 @@
         </div>
         <button class="creature-button" id="creatureButton" type="button">
           <span>CREATURES</span><span aria-hidden="true">•••</span>
+        </button>
+        <button class="speed-toggle" id="creatureSpeedButton" type="button" aria-label="Creature movement speed: normal">
+          <span>CREATURE SPEED</span><strong>NORMAL</strong>
         </button>
         <button class="character-toggle" id="characterToggle" type="button" aria-label="Switch to boy character">
           <span>CHARACTER</span><strong>GIRL</strong>
@@ -131,6 +143,7 @@
         <label class="creature-option"><span><strong>Frogs</strong><small>Resting and hopping pond frogs</small></span><input type="checkbox" data-creature="frogs" checked /><i></i></label>
         <label class="creature-option"><span><strong>Dragonflies</strong><small>Hovering visitors above the water</small></span><input type="checkbox" data-creature="dragonflies" checked /><i></i></label>
         <label class="creature-option"><span><strong>Hummingbirds</strong><small>Hovering garden visitors with rapid wingbeats</small></span><input type="checkbox" data-creature="hummingbirds" checked /><i></i></label>
+        <label class="creature-option"><span><strong>Rabbit</strong><small>Resting and hopping along the garden bank</small></span><input type="checkbox" data-creature="rabbits" checked /><i></i></label>
         <button class="dialog-done" value="close">DONE</button>
       </form>
     </dialog>
