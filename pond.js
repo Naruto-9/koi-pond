@@ -256,34 +256,34 @@ function rebuildWeatherClouds(){
   for(let i=0;i<count;i++){
     const size=baseSize*(.78+Math.random()*.48);
     const view=new Container();
-    // Build each cloud from overlapping, uneven banks. Polygonal undersides
-    // and offset lobes survive the blur as natural cloud contours instead of
-    // resolving into one obvious ellipse.
+    // Assemble the cloud entirely from overlapping rounded cells. This also
+    // stays organic in the Canvas fallback, where polygon edges remain visible
+    // because the renderer cannot apply the WebGL blur filter.
     const colors=[0xaeb7b8,0x9faaac,0x8e9b9e];
     for(let layer=0;layer<3;layer++){
-      const bank=new Graphics(),width=size*(.72-layer*.08),height=size*(.13+layer*.018);
-      const centreY=size*(-.035+layer*.055),steps=9+layer*2,points=[];
-      for(let step=0;step<=steps;step++){
-        const p=step/steps,x=-width/2+width*p;
-        const crown=-height*(.28+.38*Math.sin(p*Math.PI))+((Math.random()-.5)*height*.28);
-        points.push(x,centreY+crown);
+      const cells=8+layer*3;
+      for(let cell=0;cell<cells;cell++){
+        const p=cell/(cells-1);
+        const x=(p-.5)*size*(.7-layer*.035)+(Math.random()-.5)*size*.055;
+        const edgeFade=Math.sin(p*Math.PI);
+        const radiusX=size*(.055+Math.random()*.052)*(layer===2?.9:1);
+        const radiusY=size*(.042+Math.random()*.045);
+        const y=size*(layer*.047-.065-edgeFade*(.035+Math.random()*.055))
+          +(Math.random()-.5)*size*.035;
+        const cellView=new Graphics()
+          .ellipse(x,y,radiusX,radiusY)
+          .fill({color:colors[layer],alpha:.048+layer*.012+Math.random()*.025});
+        view.addChild(cellView);
       }
-      for(let step=steps;step>=0;step--){
-        const p=step/steps,x=-width/2+width*p;
-        const underside=height*(.2+Math.sin(p*Math.PI*2.6+layer)*.12)+(Math.random()-.5)*height*.16;
-        points.push(x,centreY+underside);
-      }
-      bank.poly(points).fill({color:colors[layer],alpha:.105+layer*.018});
-      view.addChild(bank);
     }
-    // Smaller lobes interrupt the long bank silhouette, with no single lobe
-    // large enough to dictate an oval shape.
-    for(let lobe=0;lobe<7;lobe++){
-      const p=lobe/6,x=(p-.5)*size*.59+(Math.random()-.5)*size*.08;
-      const radius=size*(.075+Math.random()*.055);
+    // A few offset lobes break up both the crown and underside, avoiding a
+    // continuous diagonal boundary when neighbouring clouds overlap.
+    for(let lobe=0;lobe<11;lobe++){
+      const p=lobe/10,x=(p-.5)*size*.66+(Math.random()-.5)*size*.11;
+      const radius=size*(.045+Math.random()*.05);
       const lobeView=new Graphics()
-        .ellipse(x,-size*(.055+Math.random()*.075),radius*(.82+Math.random()*.35),radius)
-        .fill({color:lobe%2?0xb7bebd:0x98a4a6,alpha:.09+Math.random()*.055});
+        .ellipse(x,size*((Math.random()-.5)*.17),radius*(.75+Math.random()*.5),radius)
+        .fill({color:lobe%2?0xb7bebd:0x98a4a6,alpha:.04+Math.random()*.035});
       view.addChild(lobeView);
     }
     // Detached wisps keep the field dispersed, particularly in overcast
