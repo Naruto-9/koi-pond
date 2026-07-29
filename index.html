@@ -3,8 +3,94 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#071f22" />
+    <meta name="theme-color" content="#176887" />
     <title>Koi Garden</title>
+    <link
+      rel="preload"
+      as="image"
+      href="./assets/koi-garden-splash-with-logo.webp"
+      type="image/webp"
+      fetchpriority="high"
+      media="(min-width: 701px)"
+    />
+    <link
+      rel="preload"
+      as="image"
+      href="./assets/koi-garden-splash-mobile-with-logo.webp"
+      type="image/webp"
+      fetchpriority="high"
+      media="(max-width: 700px)"
+    />
+    <style>
+      /* Critical first paint: show the splash before the main stylesheet or
+         pond renderer has downloaded. */
+      html,
+      body {
+        background:
+          #176887
+          url("./assets/koi-garden-splash-with-logo.png")
+          center / cover no-repeat;
+      }
+      .pond-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        background:
+          linear-gradient(180deg, rgba(5, 27, 26, .02) 35%, rgba(5, 27, 26, .56) 100%),
+          url("./assets/koi-garden-splash-with-logo.png") center / cover no-repeat;
+      }
+      @supports (background-image: image-set(url("") type("image/webp"))) {
+        html,
+        body {
+          background-image: image-set(
+            url("./assets/koi-garden-splash-with-logo.webp") type("image/webp"),
+            url("./assets/koi-garden-splash-with-logo.jpg") type("image/jpeg"),
+            url("./assets/koi-garden-splash-with-logo.png") type("image/png")
+          );
+        }
+        .pond-loader {
+          background-image:
+            linear-gradient(180deg, rgba(5, 27, 26, .02) 35%, rgba(5, 27, 26, .56) 100%),
+            image-set(
+              url("./assets/koi-garden-splash-with-logo.webp") type("image/webp"),
+              url("./assets/koi-garden-splash-with-logo.jpg") type("image/jpeg"),
+              url("./assets/koi-garden-splash-with-logo.png") type("image/png")
+            );
+        }
+      }
+      @media (max-width: 700px) {
+        html,
+        body {
+          background-image: url("./assets/koi-garden-splash-mobile-with-logo.png");
+        }
+        .pond-loader {
+          background-image:
+            linear-gradient(180deg, rgba(5, 27, 26, .02) 35%, rgba(5, 27, 26, .56) 100%),
+            url("./assets/koi-garden-splash-mobile-with-logo.png");
+        }
+      }
+      @supports (background-image: image-set(url("") type("image/webp"))) {
+        @media (max-width: 700px) {
+          html,
+          body {
+            background-image: image-set(
+              url("./assets/koi-garden-splash-mobile-with-logo.webp") type("image/webp"),
+              url("./assets/koi-garden-splash-mobile-with-logo.jpg") type("image/jpeg"),
+              url("./assets/koi-garden-splash-mobile-with-logo.png") type("image/png")
+            );
+          }
+          .pond-loader {
+            background-image:
+              linear-gradient(180deg, rgba(5, 27, 26, .02) 35%, rgba(5, 27, 26, .56) 100%),
+              image-set(
+                url("./assets/koi-garden-splash-mobile-with-logo.webp") type("image/webp"),
+                url("./assets/koi-garden-splash-mobile-with-logo.jpg") type("image/jpeg"),
+                url("./assets/koi-garden-splash-mobile-with-logo.png") type("image/png")
+              );
+          }
+        }
+      }
+    </style>
     <script>
       // Set the initial artwork before CSS is parsed, preventing the evening
       // fallback from being painted while the pond module starts.
@@ -26,6 +112,13 @@
       <div class="pond-loader__panel">
         <p class="pond-loader__eyebrow">PREPARING THE GARDEN</p>
         <h2>Awakening the pond</h2>
+        <div class="pond-loader__progress" role="progressbar" aria-label="Pond loading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <i id="pondLoadProgress"></i>
+        </div>
+        <div class="pond-loader__progress-meta">
+          <span id="pondLoadStatus">Beginning the garden</span>
+          <strong id="pondLoadPercent">0%</strong>
+        </div>
         <ol class="pond-loader__steps">
           <li data-load-stage="init" data-state="active"><i></i><span>Initializing pond</span><b></b></li>
           <li data-load-stage="renderer"><i></i><span>Preparing renderer</span><b></b></li>

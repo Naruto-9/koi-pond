@@ -14,6 +14,18 @@ import whereSilentColorsDrownArtworkUrl from './assets/Where_Silent_Colors_Drown
 
 const startupStartedAt=performance.now();
 let startupStep=0;
+const loadingStageProgress={init:2,renderer:7,assets:12,koi:60,creatures:68,flora:76,weather:82,visitor:87,music:92,water:96,ready:99};
+function updateLoadingProgress(value,label=''){
+  const progress=Math.max(0,Math.min(100,Math.round(value)));
+  const bar=document.querySelector('#pondLoadProgress');
+  const meter=document.querySelector('.pond-loader__progress');
+  const percent=document.querySelector('#pondLoadPercent');
+  const status=document.querySelector('#pondLoadStatus');
+  if(bar)bar.style.transform=`scaleX(${progress/100})`;
+  if(meter)meter.setAttribute('aria-valuenow',String(progress));
+  if(percent)percent.textContent=`${progress}%`;
+  if(status&&label)status.textContent=label;
+}
 function setLoadingStage(stage,state='active'){
   const target=document.querySelector(`[data-load-stage="${stage}"]`);
   if(!target)return;
@@ -23,6 +35,8 @@ function setLoadingStage(stage,state='active'){
     });
   }
   target.dataset.state=state;
+  if(state==='active')updateLoadingProgress(loadingStageProgress[stage]??0,target.querySelector('span')?.textContent||'');
+  if(stage==='ready'&&state==='complete')updateLoadingProgress(100,'The pond is ready');
 }
 function startupLog(label,details){
   const elapsed=(performance.now()-startupStartedAt).toFixed(1);
@@ -614,6 +628,10 @@ async function loadPondAsset(name){
   const url=assetPath(name);
   startupLog(`Loading asset: ${name}`,url);
   const texture=await Assets.load(url);
+  if(criticalAssetsLoading){
+    criticalAssetsLoaded++;
+    updateLoadingProgress(12+(criticalAssetsLoaded/criticalAssetTotal)*48,`Loading artwork ${criticalAssetsLoaded} of ${criticalAssetTotal}`);
+  }
   startupLog(`Loaded asset: ${name}`,{width:texture.width,height:texture.height});
   return texture;
 }
@@ -627,6 +645,8 @@ function makePelletTexture(variant=0){
   return Texture.from(c);
 }
 startupLog('Loading critical pond textures in parallel');
+const criticalAssetTotal=48;
+let criticalAssetsLoaded=0,criticalAssetsLoading=true;
 const pondBackgroundPrefix=useMobilePond?'pond-water-mobile':'pond-water';
 const pondBackgroundFiles={
   morning:`${pondBackgroundPrefix}-morning.png`,
@@ -680,6 +700,7 @@ const [
   Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset)),
   Promise.all(Array.from({length:12},(_,i)=>loadPondAsset(`pellet-${i+1}.png`)))
 ]);
+criticalAssetsLoading=false;
 const pondWaterTextures={[initialTimeOfDay]:initialPondWaterTexture};
 let currentTimeOfDay=initialTimeOfDay;
 let pondWaterTexture=pondWaterTextures[currentTimeOfDay];
@@ -1021,7 +1042,7 @@ function buildPondDecor(){
     velocityX:0,velocityY:0
   });
   const rabbit=new Sprite(rabbitFrames[0]);rabbit.anchor.set(.5,.82);
-  const rabbitScale=(useMobilePond?.115:.19)*mobileContentScale;
+  const rabbitScale=(useMobilePond?.30:.24)*mobileContentScale;
   // Keep every waypoint on one continuous lower-right bank corridor. Previously,
   // independently chosen shoreline points allowed the straight hop chord to
   // cut across the water even though both endpoints were on land.
