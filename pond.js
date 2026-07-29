@@ -1647,7 +1647,25 @@ const volumeSlider=document.querySelector('#volumeSlider');
 const currentTrackName=document.querySelector('#currentTrackName');
 const trackArtwork=document.querySelector('#trackArtwork');
 const trackList=document.querySelector('#trackList');
+const playbackSeek=document.querySelector('#playbackSeek');
+const playbackElapsed=document.querySelector('#playbackElapsed');
+const playbackDuration=document.querySelector('#playbackDuration');
 const trackFilterButtons=[...document.querySelectorAll('[data-track-filter]')];
+const formatPlaybackTime=seconds=>{
+  if(!Number.isFinite(seconds)||seconds<0)return '0:00';
+  const minutes=Math.floor(seconds/60);
+  return `${minutes}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
+};
+function updatePlaybackProgress(){
+  const duration=Number.isFinite(gardenMusic.duration)?gardenMusic.duration:0;
+  const elapsed=Math.min(gardenMusic.currentTime||0,duration||Infinity);
+  const progress=duration?elapsed/duration*100:0;
+  playbackSeek.value=String(progress);
+  playbackSeek.style.setProperty('--seek-progress',`${progress}%`);
+  playbackSeek.setAttribute('aria-valuetext',`${formatPlaybackTime(elapsed)} of ${formatPlaybackTime(duration)}`);
+  playbackElapsed.textContent=formatPlaybackTime(elapsed);
+  playbackDuration.textContent=formatPlaybackTime(duration);
+}
 const visibleTrackIndexes=()=>musicTracks
   .map((track,index)=>({track,index}))
   .filter(({track})=>trackFilter==='all'||(trackFilter==='instrumental'?track.instrumental:!track.instrumental))
@@ -1673,6 +1691,7 @@ async function selectMusicTrack(index,{play=!gardenMusic.paused}={}){
   currentTrackIndex=index;
   const track=musicTracks[index];
   gardenMusic.src=track.url;gardenMusic.load();gardenMusic.volume=userVolume;
+  updatePlaybackProgress();
   currentTrackName.textContent=track.title;
   trackArtwork.hidden=!track.artwork;
   if(track.artwork){
@@ -1708,6 +1727,14 @@ trackFilterButtons.forEach(button=>button.addEventListener('click',()=>{
   }else renderTrackList();
 }));
 gardenMusic.addEventListener('ended',()=>skipMusicTrack(1));
+gardenMusic.addEventListener('timeupdate',updatePlaybackProgress);
+gardenMusic.addEventListener('loadedmetadata',updatePlaybackProgress);
+gardenMusic.addEventListener('durationchange',updatePlaybackProgress);
+playbackSeek.addEventListener('input',()=>{
+  if(!Number.isFinite(gardenMusic.duration))return;
+  gardenMusic.currentTime=Number(playbackSeek.value)/100*gardenMusic.duration;
+  updatePlaybackProgress();
+});
 renderTrackList();
 const soundWave=document.querySelector('#soundWave');
 const soundWaveContext=soundWave?.getContext('2d');

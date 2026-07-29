@@ -103,6 +103,10 @@ body.pond-ready #pond { opacity: 1; }
 .volume-panel .track-name { overflow:hidden; color:#f1ead7; font:500 10px/1.2 "DM Sans",sans-serif; letter-spacing:.035em; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
 .track-skip { width:24px; height:24px; padding:0 0 2px; border:1px solid rgba(255,255,255,.14); border-radius:50%; background:rgba(255,255,255,.035); color:#e5dbc0; font:300 18px/1 serif; cursor:pointer; }
 .track-skip:hover { border-color:rgba(214,195,140,.5); background:rgba(214,195,140,.12); }
+.playback-progress { display:grid; gap:4px; padding:2px 1px 3px; }
+.volume-panel .playback-progress input { --seek-progress:0%; height:3px; cursor:pointer; background:linear-gradient(90deg,#7fcdbb var(--seek-progress),rgba(255,255,255,.17) var(--seek-progress)); }
+.volume-panel .playback-progress input::-webkit-slider-thumb { width:9px; height:9px; border-color:rgba(235,229,207,.9); background:#376d66; }
+.playback-times { display:flex; justify-content:space-between; color:rgba(222,217,196,.56); font:500 6px/1 "DM Sans",sans-serif; letter-spacing:.04em; }
 .track-filters { display:grid; grid-template-columns:.62fr 1.28fr .72fr; gap:3px; padding:3px; border-radius:4px; background:rgba(255,255,255,.035); }
 .track-filters button { min-width:0; padding:5px 3px; border:0; border-radius:2px; background:transparent; color:rgba(222,217,196,.62); font:500 5.5px/1 "DM Sans",sans-serif; letter-spacing:.1em; cursor:pointer; }
 .track-filters button[aria-pressed="true"] { background:rgba(116,190,174,.18); color:#dcece4; }

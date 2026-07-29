@@ -73,6 +73,13 @@
             <strong class="track-name" id="currentTrackName">The Weight of Amber</strong>
             <button class="track-skip" id="nextTrack" type="button" aria-label="Next track">›</button>
           </div>
+          <div class="playback-progress">
+            <input id="playbackSeek" type="range" min="0" max="100" step="0.1" value="0" aria-label="Song playback position" />
+            <div class="playback-times" aria-hidden="true">
+              <time id="playbackElapsed">0:00</time>
+              <time id="playbackDuration">0:00</time>
+            </div>
+          </div>
           <div class="track-filters" role="group" aria-label="Filter tracks">
             <button type="button" data-track-filter="all" aria-pressed="false">ALL</button>
             <button type="button" data-track-filter="instrumental" aria-pressed="false">INSTRUMENTAL</button>
