@@ -110,16 +110,28 @@
   <body>
     <section class="pond-loader" aria-live="polite" aria-label="Pond loading progress">
       <div class="pond-loader__panel">
-        <p class="pond-loader__eyebrow">PREPARING THE GARDEN</p>
-        <h2>Awakening the pond</h2>
+        <div class="pond-loader__heading">
+          <div>
+            <p class="pond-loader__eyebrow">PREPARING THE GARDEN</p>
+            <h2>Awakening the pond</h2>
+          </div>
+          <button class="pond-loader__expand" id="pondLoaderExpand" type="button" aria-expanded="false" aria-controls="pondLoaderSteps">
+            <span>Details</span>
+            <i aria-hidden="true"></i>
+          </button>
+        </div>
         <div class="pond-loader__progress" role="progressbar" aria-label="Pond loading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <i id="pondLoadProgress"></i>
+          <span class="pond-loader__fill" id="pondLoadProgress">
+            <span class="pond-loader__koi" aria-hidden="true">
+              <img src="./assets/koi-tancho-cropped.png" alt="" />
+            </span>
+          </span>
         </div>
         <div class="pond-loader__progress-meta">
           <span id="pondLoadStatus">Beginning the garden</span>
           <strong id="pondLoadPercent">0%</strong>
         </div>
-        <ol class="pond-loader__steps">
+        <ol class="pond-loader__steps" id="pondLoaderSteps">
           <li data-load-stage="init" data-state="active"><i></i><span>Initializing pond</span><b></b></li>
           <li data-load-stage="renderer"><i></i><span>Preparing renderer</span><b></b></li>
           <li data-load-stage="assets"><i></i><span>Loading garden artwork</span><b></b></li>

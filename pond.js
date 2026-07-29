@@ -19,13 +19,26 @@ function updateLoadingProgress(value,label=''){
   const progress=Math.max(0,Math.min(100,Math.round(value)));
   const bar=document.querySelector('#pondLoadProgress');
   const meter=document.querySelector('.pond-loader__progress');
+  const progressKoi=meter?.querySelector('.pond-loader__koi');
   const percent=document.querySelector('#pondLoadPercent');
   const status=document.querySelector('#pondLoadStatus');
-  if(bar)bar.style.transform=`scaleX(${progress/100})`;
+  if(bar)bar.style.width=`${progress}%`;
+  if(progressKoi&&meter){
+    const filledWidth=meter.clientWidth*progress/100;
+    progressKoi.classList.toggle('is-visible',filledWidth>=progressKoi.offsetWidth+4);
+  }
   if(meter)meter.setAttribute('aria-valuenow',String(progress));
   if(percent)percent.textContent=`${progress}%`;
   if(status&&label)status.textContent=label;
 }
+const pondLoaderPanel=document.querySelector('.pond-loader__panel');
+const pondLoaderExpand=document.querySelector('#pondLoaderExpand');
+pondLoaderExpand?.addEventListener('click',()=>{
+  const expanded=pondLoaderPanel?.classList.toggle('is-expanded')??false;
+  pondLoaderExpand.setAttribute('aria-expanded',String(expanded));
+  const label=pondLoaderExpand.querySelector('span');
+  if(label)label.textContent=expanded?'Hide':'Details';
+});
 function setLoadingStage(stage,state='active'){
   const target=document.querySelector(`[data-load-stage="${stage}"]`);
   if(!target)return;
