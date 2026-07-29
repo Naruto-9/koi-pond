@@ -60,12 +60,24 @@
             <path class="mute-mark" d="m16 10 5 5m0-5-5 5"/>
           </svg>
         </button>
-        <label class="volume-panel" for="volumeSlider">
+        <div class="volume-panel" aria-label="Music controls">
           <span class="track-label">NOW PLAYING</span>
-          <strong class="track-name">Koi in Sunlight</strong>
-          <span class="volume-label">VOLUME</span>
-          <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.78" aria-label="Koi in Sunlight volume" />
-        </label>
+          <div class="track-heading">
+            <button class="track-skip" id="previousTrack" type="button" aria-label="Previous track">‹</button>
+            <strong class="track-name" id="currentTrackName">Koi in Sunlight</strong>
+            <button class="track-skip" id="nextTrack" type="button" aria-label="Next track">›</button>
+          </div>
+          <div class="track-filters" role="group" aria-label="Filter tracks">
+            <button type="button" data-track-filter="all" aria-pressed="true">ALL</button>
+            <button type="button" data-track-filter="instrumental" aria-pressed="false">INSTRUMENTAL</button>
+            <button type="button" data-track-filter="vocal" aria-pressed="false">VOCAL</button>
+          </div>
+          <div class="track-list" id="trackList" role="list" aria-label="Available tracks"></div>
+          <label class="volume-row" for="volumeSlider">
+            <span class="volume-label">VOLUME</span>
+            <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.78" aria-label="Music volume" />
+          </label>
+        </div>
         </div>
       </div>
     </header>

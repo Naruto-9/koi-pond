@@ -4,7 +4,9 @@ import {
   WebGLRenderer, CanvasRenderer
 } from 'pixi.js';
 import 'pixi.js/browser';
-import gardenMusicUrl from './assets/Koi_in_Sunlight.mp3';
+import koiInSunlightUrl from './assets/Koi_in_Sunlight.mp3';
+import stonesBeneathCurrentUrl from './assets/Stones_Beneath_the_Current.mp3';
+import weightOfAmberUrl from './assets/The_Weight_of_Amber.mp3';
 
 const startupStartedAt=performance.now();
 let startupStep=0;
@@ -219,7 +221,7 @@ const rainShade=new Graphics();
 rainShade.blendMode='multiply';rainShade.visible=false;weatherLayer.addChild(rainShade);
 const cloudLayer=new Container();
 cloudLayer.visible=false;weatherLayer.addChild(cloudLayer);
-if(!isCanvasRenderer)cloudLayer.filters=[new BlurFilter({strength:28,quality:2})];
+if(!isCanvasRenderer)cloudLayer.filters=[new BlurFilter({strength:19,quality:2})];
 const lightningFlash=new Graphics();
 lightningFlash.blendMode='screen';lightningFlash.visible=false;weatherLayer.addChild(lightningFlash);
 if(!isCanvasRenderer)lightningFlash.filters=[new BlurFilter({strength:52,quality:3})];
@@ -245,20 +247,56 @@ function syncWeatherLayerVisibility(){
 function rebuildWeatherClouds(){
   cloudLayer.removeChildren().forEach(child=>child.destroy());
   weatherClouds.length=0;
-  const count=useMobilePond?5:7;
-  const baseSize=Math.max(190,Math.min(560,app.screen.width*.31));
+  const count=useMobilePond?6:9;
+  const baseSize=Math.max(180,Math.min(500,app.screen.width*.27));
   for(let i=0;i<count;i++){
     const size=baseSize*(.78+Math.random()*.48);
-    const view=new Graphics()
-      .ellipse(-size*.34,0,size*.38,size*.095).fill({color:0xa7b0b1,alpha:.16})
-      .ellipse(-size*.09,-size*.05,size*.33,size*.12).fill({color:0xb5bcbd,alpha:.18})
-      .ellipse(size*.25,-size*.012,size*.4,size*.105).fill({color:0x98a4a7,alpha:.15})
-      .ellipse(0,size*.035,size*.72,size*.09).fill({color:0x89979a,alpha:.13});
+    const view=new Container();
+    // Build each cloud from overlapping, uneven banks. Polygonal undersides
+    // and offset lobes survive the blur as natural cloud contours instead of
+    // resolving into one obvious ellipse.
+    const colors=[0xaeb7b8,0x9faaac,0x8e9b9e];
+    for(let layer=0;layer<3;layer++){
+      const bank=new Graphics(),width=size*(.72-layer*.08),height=size*(.13+layer*.018);
+      const centreY=size*(-.035+layer*.055),steps=9+layer*2,points=[];
+      for(let step=0;step<=steps;step++){
+        const p=step/steps,x=-width/2+width*p;
+        const crown=-height*(.28+.38*Math.sin(p*Math.PI))+((Math.random()-.5)*height*.28);
+        points.push(x,centreY+crown);
+      }
+      for(let step=steps;step>=0;step--){
+        const p=step/steps,x=-width/2+width*p;
+        const underside=height*(.2+Math.sin(p*Math.PI*2.6+layer)*.12)+(Math.random()-.5)*height*.16;
+        points.push(x,centreY+underside);
+      }
+      bank.poly(points).fill({color:colors[layer],alpha:.105+layer*.018});
+      view.addChild(bank);
+    }
+    // Smaller lobes interrupt the long bank silhouette, with no single lobe
+    // large enough to dictate an oval shape.
+    for(let lobe=0;lobe<7;lobe++){
+      const p=lobe/6,x=(p-.5)*size*.59+(Math.random()-.5)*size*.08;
+      const radius=size*(.075+Math.random()*.055);
+      const lobeView=new Graphics()
+        .ellipse(x,-size*(.055+Math.random()*.075),radius*(.82+Math.random()*.35),radius)
+        .fill({color:lobe%2?0xb7bebd:0x98a4a6,alpha:.09+Math.random()*.055});
+      view.addChild(lobeView);
+    }
+    // Detached wisps keep the field dispersed, particularly in overcast
+    // conditions where repeated solid blobs were most noticeable.
+    for(let wisp=0;wisp<2;wisp++){
+      const wispView=new Graphics(),wispWidth=size*(.18+Math.random()*.13);
+      const wx=(wisp?.38:-.4)*size+(Math.random()-.5)*size*.08;
+      wispView
+        .ellipse(wx,size*(.035+wisp*.055),wispWidth,size*(.018+Math.random()*.018))
+        .fill({color:0xadb6b6,alpha:.055+Math.random()*.035});
+      view.addChild(wispView);
+    }
     view.blendMode='normal';
     const x=(i/(count-1))*app.screen.width+(Math.random()-.5)*baseSize*.7;
-    const baseY=app.screen.height*(.025+Math.random()*.18);
+    const baseY=app.screen.height*(.015+Math.random()*.21);
     view.position.set(x,baseY);cloudLayer.addChild(view);
-    weatherClouds.push({view,size,baseY,speed:.012+Math.random()*.016,phase:Math.random()*Math.PI*2});
+    weatherClouds.push({view,size,baseY,speed:.009+Math.random()*.014,phase:Math.random()*Math.PI*2});
   }
 }
 function updateWeatherClouds(delta,now){
@@ -481,8 +519,14 @@ const creatureVisibility={koi:true,turtles:true,frogs:true,dragonflies:true,humm
 let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
 let audioOn=true,userVolume=.78;
-const gardenMusic=new Audio(gardenMusicUrl);
-gardenMusic.loop=true;
+const musicTracks=[
+  {title:'Koi in Sunlight',url:koiInSunlightUrl,instrumental:true},
+  {title:'Stones Beneath the Current',url:stonesBeneathCurrentUrl,instrumental:true},
+  {title:'The Weight of Amber',url:weightOfAmberUrl,instrumental:false}
+];
+let currentTrackIndex=0,trackFilter='all';
+const gardenMusic=new Audio(musicTracks[currentTrackIndex].url);
+gardenMusic.loop=false;
 gardenMusic.preload='auto';
 gardenMusic.volume=userVolume;
 gardenMusic.autoplay=true;
@@ -1589,6 +1633,62 @@ window.addEventListener('pointerdown',event=>{
 const soundButton=document.querySelector('#soundButton');
 const soundControl=document.querySelector('.sound-control');
 const volumeSlider=document.querySelector('#volumeSlider');
+const currentTrackName=document.querySelector('#currentTrackName');
+const trackList=document.querySelector('#trackList');
+const trackFilterButtons=[...document.querySelectorAll('[data-track-filter]')];
+const visibleTrackIndexes=()=>musicTracks
+  .map((track,index)=>({track,index}))
+  .filter(({track})=>trackFilter==='all'||(trackFilter==='instrumental'?track.instrumental:!track.instrumental))
+  .map(({index})=>index);
+function renderTrackList(){
+  if(!trackList)return;
+  trackList.replaceChildren(...visibleTrackIndexes().map(index=>{
+    const track=musicTracks[index],button=document.createElement('button');
+    button.type='button';button.dataset.trackIndex=String(index);
+    button.setAttribute('role','listitem');
+    button.setAttribute('aria-current',String(index===currentTrackIndex));
+    const name=document.createElement('strong');name.textContent=track.title;
+    const type=document.createElement('small');type.textContent=track.instrumental?'INST':'VOCAL';
+    button.append(name,type);
+    button.addEventListener('click',()=>selectMusicTrack(index,{play:true}));
+    return button;
+  }));
+  trackFilterButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.trackFilter===trackFilter)));
+}
+async function selectMusicTrack(index,{play=!gardenMusic.paused}={}){
+  if(index<0||index>=musicTracks.length)return;
+  const wasPlaying=play||(!gardenMusic.paused&&audioOn);
+  currentTrackIndex=index;
+  const track=musicTracks[index];
+  gardenMusic.src=track.url;gardenMusic.load();gardenMusic.volume=userVolume;
+  currentTrackName.textContent=track.title;
+  volumeSlider.setAttribute('aria-label',`${track.title} volume`);
+  renderTrackList();
+  if(wasPlaying){
+    try{await enableMusicAnalysis();await gardenMusic.play();reflectAudioState(true);}
+    catch(error){console.warn('[KOI AUDIO] Track change playback failed',error);}
+  }
+}
+function skipMusicTrack(direction){
+  const indexes=visibleTrackIndexes();
+  if(!indexes.length)return;
+  const position=indexes.indexOf(currentTrackIndex);
+  const nextPosition=position<0
+    ? (direction>0?0:indexes.length-1)
+    : (position+direction+indexes.length)%indexes.length;
+  selectMusicTrack(indexes[nextPosition],{play:true});
+}
+document.querySelector('#previousTrack')?.addEventListener('click',()=>skipMusicTrack(-1));
+document.querySelector('#nextTrack')?.addEventListener('click',()=>skipMusicTrack(1));
+trackFilterButtons.forEach(button=>button.addEventListener('click',()=>{
+  trackFilter=button.dataset.trackFilter;
+  const indexes=visibleTrackIndexes();
+  if(!indexes.includes(currentTrackIndex)&&indexes.length){
+    selectMusicTrack(indexes[0],{play:!gardenMusic.paused});
+  }else renderTrackList();
+}));
+gardenMusic.addEventListener('ended',()=>skipMusicTrack(1));
+renderTrackList();
 const soundWave=document.querySelector('#soundWave');
 const soundWaveContext=soundWave?.getContext('2d');
 function drawSoundWave(now){
