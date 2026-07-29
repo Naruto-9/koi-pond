@@ -561,7 +561,7 @@ function removeEarlyAudioUnlock(){
   window.removeEventListener('keydown',earlyAudioUnlock,true);
 }
 function earlyAudioUnlock(event){
-  if(event?.target?.closest?.('#soundButton'))return;
+  if(event?.target?.closest?.('#soundButton,#musicPanelButton'))return;
   if(!audioOn){removeEarlyAudioUnlock();return;}
   if(!gardenMusic.paused){
     enableMusicAnalysis().then(removeEarlyAudioUnlock).catch(()=>{});
@@ -1640,7 +1640,9 @@ window.addEventListener('pointerdown',event=>{
   if(!overCreature)clearCreatureFocus();
 },{capture:true});
 const soundButton=document.querySelector('#soundButton');
+const musicPanelButton=document.querySelector('#musicPanelButton');
 const soundControl=document.querySelector('.sound-control');
+const panelPlaybackButton=document.querySelector('#panelPlaybackButton');
 const volumeSlider=document.querySelector('#volumeSlider');
 const currentTrackName=document.querySelector('#currentTrackName');
 const trackArtwork=document.querySelector('#trackArtwork');
@@ -1775,11 +1777,25 @@ function reflectAudioState(playing){
   audioOn=playing;
   soundButton.setAttribute('aria-pressed',playing);
   soundButton.setAttribute('aria-label',playing?'Mute pond music':'Play pond music');
+  panelPlaybackButton?.setAttribute('aria-pressed',String(playing));
+  if(panelPlaybackButton)panelPlaybackButton.textContent=playing?'PAUSE MUSIC':'PLAY MUSIC';
 }
 gardenMusic.addEventListener('play',()=>reflectAudioState(true));
 gardenMusic.addEventListener('pause',()=>reflectAudioState(false));
+musicPanelButton.addEventListener('click',()=>{
+  const opening=!soundControl.classList.contains('is-open');
+  soundControl.classList.toggle('is-open',opening);
+  musicPanelButton.setAttribute('aria-expanded',String(opening));
+});
 soundButton.addEventListener('click',async()=>{
-  soundControl.classList.add('is-open');
+  if(gardenMusic.paused){
+    try{await enableMusicAnalysis();await startAmbientSoundscape();reflectAudioState(true);}
+    catch(error){reflectAudioState(false);console.warn('[KOI AUDIO] Playback failed',error);}
+  }else{
+    stopAmbientSoundscape();reflectAudioState(false);
+  }
+});
+panelPlaybackButton?.addEventListener('click',async()=>{
   if(gardenMusic.paused){
     try{await enableMusicAnalysis();await startAmbientSoundscape();reflectAudioState(true);}
     catch(error){reflectAudioState(false);console.warn('[KOI AUDIO] Playback failed',error);}
@@ -1792,7 +1808,10 @@ volumeSlider.addEventListener('input',()=>{
   userVolume=Number(volumeSlider.value);
   gardenMusic.volume=userVolume;
 });
-canvas.addEventListener('pointerdown',()=>soundControl.classList.remove('is-open'));
+canvas.addEventListener('pointerdown',()=>{
+  soundControl.classList.remove('is-open');
+  musicPanelButton.setAttribute('aria-expanded','false');
+});
 async function startAmbientSoundscape(){
   gardenMusic.volume=userVolume;
   await gardenMusic.play();
@@ -1811,7 +1830,7 @@ startAmbientSoundscape().catch(error=>{
   console.info('[KOI AUDIO] Waiting for first interaction',error.name);
 });
 const unlockMusic=event=>{
-  if(event.target.closest?.('#soundButton'))return;
+  if(event.target.closest?.('#soundButton,#musicPanelButton'))return;
   if(audioOn)enableMusicAnalysis()
     .then(()=>gardenMusic.paused?startAmbientSoundscape():undefined)
     .catch(error=>console.warn('[KOI AUDIO] Interaction unlock failed',error));

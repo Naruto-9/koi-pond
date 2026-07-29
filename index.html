@@ -53,6 +53,11 @@
         <canvas class="sound-wave" id="soundWave" width="180" height="112" aria-hidden="true"></canvas>
         <time class="garden-clock" id="gardenClock" aria-label="Local time">--:--</time>
         <div class="sound-control">
+        <button class="round-button music-panel-button" id="musicPanelButton" aria-label="Open music controls" aria-controls="musicPanel" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 17.5a2.5 2.5 0 1 1-2-2.45V7l10-2v9.5a2.5 2.5 0 1 1-2-2.45V8L9 9.2v8.3Z"/>
+          </svg>
+        </button>
         <button class="round-button" id="soundButton" aria-label="Mute pond music" aria-pressed="true">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path class="speaker-shape" d="M4 14h4l5 4V6L8 10H4v4Z"/>
@@ -60,7 +65,7 @@
             <path class="mute-mark" d="m16 10 5 5m0-5-5 5"/>
           </svg>
         </button>
-        <div class="volume-panel" aria-label="Music controls">
+        <div class="volume-panel" id="musicPanel" aria-label="Music controls">
           <span class="track-label">NOW PLAYING</span>
           <img class="track-artwork" id="trackArtwork" src="./assets/The_Weight_of_Amber-artwork.png" alt="The Weight of Amber cover artwork" />
           <div class="track-heading">
@@ -74,6 +79,7 @@
             <button type="button" data-track-filter="vocal" aria-pressed="true">VOCAL</button>
           </div>
           <div class="track-list" id="trackList" role="list" aria-label="Available tracks"></div>
+          <button class="playback-toggle" id="panelPlaybackButton" type="button" aria-pressed="true">PAUSE MUSIC</button>
           <label class="volume-row" for="volumeSlider">
             <span class="volume-label">VOLUME</span>
             <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.78" aria-label="Music volume" />
