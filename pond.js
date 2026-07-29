@@ -7,7 +7,10 @@ import 'pixi.js/browser';
 import koiInSunlightUrl from './assets/Koi_in_Sunlight.mp3';
 import weightOfAmberUrl from './assets/The_Weight_of_Amber.mp3';
 import beneathTheGlassUrl from './assets/Beneath_the_Glass.mp3';
-import foldingTheWaterUrl from './assets/Folding_The_Water.mp3';
+import whereSilentColorsDrownUrl from './assets/Where_Silent_Colors_Drown.mp3';
+import weightOfAmberArtworkUrl from './assets/The_Weight_of_Amber-artwork.png';
+import beneathTheGlassArtworkUrl from './assets/Beneath_the_Glass-artwork.png';
+import whereSilentColorsDrownArtworkUrl from './assets/Where_Silent_Colors_Drown-artwork.png';
 
 const startupStartedAt=performance.now();
 let startupStep=0;
@@ -521,9 +524,9 @@ let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
 let audioOn=true,userVolume=.78;
 const musicTracks=[
-  {title:'The Weight of Amber',url:weightOfAmberUrl,instrumental:false},
-  {title:'Beneath the Glass',url:beneathTheGlassUrl,instrumental:false},
-  {title:'Folding the Water',url:foldingTheWaterUrl,instrumental:false},
+  {title:'The Weight of Amber',url:weightOfAmberUrl,artwork:weightOfAmberArtworkUrl,instrumental:false},
+  {title:'Beneath the Glass',url:beneathTheGlassUrl,artwork:beneathTheGlassArtworkUrl,instrumental:false},
+  {title:'Where Silent Colors Drown',url:whereSilentColorsDrownUrl,artwork:whereSilentColorsDrownArtworkUrl,instrumental:false},
   {title:'Koi in Sunlight',url:koiInSunlightUrl,instrumental:true}
 ];
 let currentTrackIndex=0,trackFilter='vocal';
@@ -1640,6 +1643,7 @@ const soundButton=document.querySelector('#soundButton');
 const soundControl=document.querySelector('.sound-control');
 const volumeSlider=document.querySelector('#volumeSlider');
 const currentTrackName=document.querySelector('#currentTrackName');
+const trackArtwork=document.querySelector('#trackArtwork');
 const trackList=document.querySelector('#trackList');
 const trackFilterButtons=[...document.querySelectorAll('[data-track-filter]')];
 const visibleTrackIndexes=()=>musicTracks
@@ -1668,6 +1672,14 @@ async function selectMusicTrack(index,{play=!gardenMusic.paused}={}){
   const track=musicTracks[index];
   gardenMusic.src=track.url;gardenMusic.load();gardenMusic.volume=userVolume;
   currentTrackName.textContent=track.title;
+  trackArtwork.hidden=!track.artwork;
+  if(track.artwork){
+    trackArtwork.src=track.artwork;
+    trackArtwork.alt=`${track.title} cover artwork`;
+  }else{
+    trackArtwork.removeAttribute('src');
+    trackArtwork.alt='';
+  }
   volumeSlider.setAttribute('aria-label',`${track.title} volume`);
   renderTrackList();
   if(wasPlaying){
