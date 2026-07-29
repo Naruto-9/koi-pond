@@ -5,8 +5,9 @@ import {
 } from 'pixi.js';
 import 'pixi.js/browser';
 import koiInSunlightUrl from './assets/Koi_in_Sunlight.mp3';
-import stonesBeneathCurrentUrl from './assets/Stones_Beneath_the_Current.mp3';
 import weightOfAmberUrl from './assets/The_Weight_of_Amber.mp3';
+import beneathTheGlassUrl from './assets/Beneath_the_Glass.mp3';
+import foldingTheWaterUrl from './assets/Folding_The_Water.mp3';
 
 const startupStartedAt=performance.now();
 let startupStep=0;
@@ -520,11 +521,12 @@ let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
 let audioOn=true,userVolume=.78;
 const musicTracks=[
-  {title:'Koi in Sunlight',url:koiInSunlightUrl,instrumental:true},
-  {title:'Stones Beneath the Current',url:stonesBeneathCurrentUrl,instrumental:true},
-  {title:'The Weight of Amber',url:weightOfAmberUrl,instrumental:false}
+  {title:'The Weight of Amber',url:weightOfAmberUrl,instrumental:false},
+  {title:'Beneath the Glass',url:beneathTheGlassUrl,instrumental:false},
+  {title:'Folding the Water',url:foldingTheWaterUrl,instrumental:false},
+  {title:'Koi in Sunlight',url:koiInSunlightUrl,instrumental:true}
 ];
-let currentTrackIndex=0,trackFilter='all';
+let currentTrackIndex=0,trackFilter='vocal';
 const gardenMusic=new Audio(musicTracks[currentTrackIndex].url);
 gardenMusic.loop=false;
 gardenMusic.preload='auto';
@@ -580,7 +582,7 @@ const bundledAssets=import.meta.glob([
   './assets/pellet-1[0-2].png',
   './assets/dragonfly.png',
   './assets/hummingbird.png',
-  './assets/rabbit-sheet.png',
+  './assets/rabbit-sheet-clean.png',
   './assets/cardinal-flower.png',
   './assets/canna-lily.png',
   './assets/water-iris.png',
@@ -671,7 +673,7 @@ const [
   Promise.all([1,2,3,4,5,6].map(i=>loadPondAsset(`pebble-${i}.png`))),
   loadPondAsset('dragonfly.png'),
   loadPondAsset('hummingbird.png'),
-  loadPondAsset('rabbit-sheet.png'),
+  loadPondAsset('rabbit-sheet-clean.png'),
   Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset)),
   Promise.all(Array.from({length:12},(_,i)=>loadPondAsset(`pellet-${i+1}.png`)))
 ]);
@@ -1017,13 +1019,17 @@ function buildPondDecor(){
   });
   const rabbit=new Sprite(rabbitFrames[0]);rabbit.anchor.set(.5,.82);
   const rabbitScale=(useMobilePond?.115:.19)*mobileContentScale;
-  // Keep every waypoint on one continuous upper-bank corridor. Previously,
+  // Keep every waypoint on one continuous lower-right bank corridor. Previously,
   // independently chosen shoreline points allowed the straight hop chord to
   // cut across the water even though both endpoints were on land.
-  const bankY=Math.max(48*mobileContentScale,pondArea.cy-pondArea.ry-34*mobileContentScale);
-  const minBankX=Math.max(54*mobileContentScale,pondArea.cx-pondArea.rx*.12);
-  const maxBankX=Math.min(w-54*mobileContentScale,pondArea.cx+pondArea.rx*.92);
-  const rabbitWaypoints=[.08,.36,.64,.92].map(t=>({x:minBankX+(maxBankX-minBankX)*t,y:bankY}));
+  const rabbitClearance=useMobilePond?34:78;
+  const bankY=Math.min(h-18*mobileContentScale,pondArea.cy+pondArea.ry+rabbitClearance*mobileContentScale);
+  const minBankX=Math.max(w*.68,pondArea.cx+pondArea.rx*.34);
+  const maxBankX=Math.min(w-30*mobileContentScale,pondArea.cx+pondArea.rx*1.04);
+  const rabbitWaypoints=[.08,.36,.64,.92].map(t=>{
+    const point={x:minBankX+(maxBankX-minBankX)*t,y:bankY};
+    return constrainOutsidePond(point.x,point.y,rabbitClearance*mobileContentScale);
+  });
   rabbit.position.set(rabbitWaypoints[3].x,rabbitWaypoints[3].y);
   rabbit.scale.set(rabbitScale);rabbit.alpha=.92;bankPlantLayer.addChild(rabbit);
   addInspectable(rabbit,'rabbits','Garden Rabbit','GARDEN VISITOR','A rabbit moves in short, powerful bounds separated by long attentive pauses. Its ears constantly sample the garden for sound while its nose and whiskers inspect sheltered pond-side plants.');
@@ -2299,7 +2305,9 @@ app.ticker.add(ticker=>{
       const p=Math.min(1,r.progress),arc=Math.sin(p*Math.PI);
       const ease=p*p*(3-2*p);
       r.view.x=r.fromX+(r.toX-r.fromX)*ease;
-      r.view.y=r.fromY+(r.toY-r.fromY)*ease-arc*28*mobileContentScale;
+      // On the lower bank the leap bows downward, away from the water,
+      // rather than visually cutting upward across the shoreline.
+      r.view.y=r.fromY+(r.toY-r.fromY)*ease+arc*28*mobileContentScale;
       const landSafe=constrainOutsidePond(r.view.x,r.view.y,28*mobileContentScale);
       r.view.position.set(landSafe.x,landSafe.y);
       const frame=p<.14?3:p<.34?4:p<.64?5:p<.86?6:7;
