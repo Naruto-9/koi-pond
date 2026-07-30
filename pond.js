@@ -169,6 +169,7 @@ setLoadingStage('renderer','complete');setLoadingStage('assets');
 
 const waterLayer = new Container();
 const refractedWaterLayer = new Container();
+const waterMotionLayer = new Container();
 const waterTintLayer = new Container();
 const bankPlantLayer = new Container();
 const shorelineLayer = new Container();
@@ -183,20 +184,40 @@ const weatherLayer = new Container();
 const rainLayer = new Container();
 const focusLayer = new Container();
 const pondMask = new Graphics();
-app.stage.addChild(waterLayer, refractedWaterLayer, waterTintLayer, bankPlantLayer, shorelineLayer, decorLayer, shadowLayer, fishLayer, floatingLayer, lightingLayer, surfaceLayer, aerialLayer, weatherLayer, rainLayer, focusLayer, pondMask);
+const refractionMask = new Graphics();
+app.stage.addChild(waterLayer, refractedWaterLayer, waterMotionLayer, waterTintLayer, bankPlantLayer, shorelineLayer, decorLayer, shadowLayer, fishLayer, floatingLayer, lightingLayer, surfaceLayer, aerialLayer, weatherLayer, rainLayer, focusLayer, pondMask, refractionMask);
 startupLog('Scene layers created',{stageChildren:app.stage.children.length});
-refractedWaterLayer.mask=pondMask;waterTintLayer.mask=pondMask;shorelineLayer.mask=pondMask;decorLayer.mask=pondMask;shadowLayer.mask=pondMask;fishLayer.mask=pondMask;floatingLayer.mask=pondMask;lightingLayer.mask=pondMask;surfaceLayer.mask=pondMask;
+refractedWaterLayer.mask=refractionMask;waterMotionLayer.mask=refractionMask;waterTintLayer.mask=pondMask;shorelineLayer.mask=pondMask;decorLayer.mask=pondMask;shadowLayer.mask=pondMask;fishLayer.mask=pondMask;floatingLayer.mask=pondMask;lightingLayer.mask=pondMask;surfaceLayer.mask=pondMask;
 const pondArea={cx:0,cy:0,rx:1,ry:1};
 let pondOutline=[];
-// Normalized points trace the painted waterline clockwise, including the
-// irregular planted shelves and large rocks along the right and lower banks.
+// Normalized points trace the painted waterline clockwise. They are converted
+// to a smooth closed curve below, so the optional mesh follows the organic
+// bank instead of exposing a faceted polygon.
 const pondOutlineNormalized=[
-  [.25,.095],[.36,.055],[.51,.045],[.65,.065],[.76,.12],[.85,.22],
-  [.91,.34],[.91,.50],[.86,.64],[.77,.76],[.66,.86],[.54,.92],
-  [.45,.935],[.39,.90],[.355,.84],[.345,.76],[.32,.69],[.295,.61],
-  [.27,.53],[.235,.46],[.20,.41],[.18,.35],[.18,.29],[.205,.25],
-  [.22,.20],[.215,.16],[.195,.125]
+  [.20,.177],[.30,.12],[.45,.10],[.62,.11],[.75,.15],[.85,.22],
+  [.91,.33],[.92,.50],[.88,.64],[.80,.74],[.69,.83],[.55,.89],
+  [.43,.90],[.35,.842],[.28,.78],[.227,.72],[.137,.64],[.119,.593],
+  [.126,.529],[.126,.315],[.136,.244]
 ];
+function drawSmoothPondShape(graphics){
+  const count=pondOutline.length/2;
+  if(count<3)return graphics;
+  const point=index=>{
+    const wrapped=(index+count)%count;
+    return {x:pondOutline[wrapped*2],y:pondOutline[wrapped*2+1]};
+  };
+  const first=point(0);
+  graphics.moveTo(first.x,first.y);
+  for(let i=0;i<count;i++){
+    const p0=point(i-1),p1=point(i),p2=point(i+1),p3=point(i+2);
+    graphics.bezierCurveTo(
+      p1.x+(p2.x-p0.x)/6,p1.y+(p2.y-p0.y)/6,
+      p2.x-(p3.x-p1.x)/6,p2.y-(p3.y-p1.y)/6,
+      p2.x,p2.y
+    );
+  }
+  return graphics.closePath();
+}
 
 // One shared sunset grade ties generated sprites to the peach and olive light
 // already painted into the garden. Shadows receive a gentler version so they
@@ -874,7 +895,7 @@ const rippleMapContext=rippleMapCanvas.getContext('2d');
 const rippleMapTexture=Texture.from(rippleMapCanvas);
 const waterShadeCanvas=document.createElement('canvas');waterShadeCanvas.width=rippleMapCanvas.width;waterShadeCanvas.height=rippleMapCanvas.height;
 const waterShadeContext=waterShadeCanvas.getContext('2d'),waterShadeTexture=Texture.from(waterShadeCanvas);
-const waterShadeSprite=new Sprite(waterShadeTexture);waterShadeSprite.alpha=.46;waterShadeSprite.blendMode='multiply';waterTintLayer.addChild(waterShadeSprite);
+const waterShadeSprite=new Sprite(waterShadeTexture);waterShadeSprite.alpha=.46;waterShadeSprite.blendMode='multiply';waterMotionLayer.addChild(waterShadeSprite);
 const rippleMapSprite=new Sprite(rippleMapTexture);rippleMapSprite.alpha=0;
 rippleMapSprite.width=app.screen.width;rippleMapSprite.height=app.screen.height;app.stage.addChild(rippleMapSprite);
 const radialRefraction=isCanvasRenderer?null:new DisplacementFilter({sprite:rippleMapSprite,scale:{x:58,y:48}});
@@ -1181,21 +1202,44 @@ caustics.mask=pondMask;
 const ambientLight = new Graphics();
 lightingLayer.addChild(ambientLight);
 const waterTint = new Graphics();
+const greenWaterMesh = new Graphics();
 waterTintLayer.addChild(waterTint);
+waterTintLayer.addChild(greenWaterMesh);
 function redrawWaterTint(){
   waterTint.clear();
+  greenWaterMesh.clear();
   if(!greenWaterEnabled)return;
-  waterTint.ellipse(pondArea.cx,pondArea.cy,pondArea.rx,pondArea.ry).fill({color:0x66b8a4,alpha:.32});
+  drawSmoothPondShape(waterTint).fill({color:0x4eaa83,alpha:.28});
   waterTint.blendMode='soft-light';
+
+  // A staggered triangular mesh makes this mode visibly different from a
+  // flat colour grade. The shoreline stroke deliberately reveals the area
+  // affected by the optional overlay.
+  const cell=Math.max(42,Math.min(68,app.screen.width/18));
+  const rowHeight=cell*.72;
+  for(let row=-1,y=0;y<=app.screen.height+rowHeight;row++,y+=rowHeight){
+    const offset=(row&1)*cell*.5;
+    for(let x=-cell+offset;x<=app.screen.width+cell;x+=cell){
+      greenWaterMesh
+        .moveTo(x,y)
+        .lineTo(x+cell*.5,y+rowHeight)
+        .lineTo(x+cell,y)
+        .stroke({width:.65,color:0xa7dec0,alpha:.12});
+      if((row+Math.round(x/cell))%3===0){
+        greenWaterMesh
+          .poly([x,y,x+cell*.5,y+rowHeight,x+cell,y])
+          .fill({color:0x7bc59f,alpha:.018});
+      }
+    }
+  }
+  drawSmoothPondShape(greenWaterMesh).stroke({width:1.15,color:0xb8e3c8,alpha:.30});
+  greenWaterMesh.blendMode='soft-light';
 }
 function redrawAmbientLight(){
   ambientLight.clear();
-  // Broad transparent pools echo the warm sky reflection in the background.
-  ambientLight.ellipse(pondArea.cx+pondArea.rx*.22,pondArea.cy-pondArea.ry*.22,pondArea.rx*.72,pondArea.ry*.54)
-    .fill({color:0xffc88f,alpha:.055});
-  ambientLight.ellipse(pondArea.cx-pondArea.rx*.28,pondArea.cy+pondArea.ry*.26,pondArea.rx*.58,pondArea.ry*.38)
-    .fill({color:0xd89c86,alpha:.026});
-  ambientLight.blendMode='screen';
+  // The background paintings already contain their own reflected light.
+  // Drawing additional translucent ellipses over them exposed a large,
+  // smooth boundary—especially at night and beneath the rain grade.
 }
 function redrawCaustics() {
   caustics.clear();
@@ -1558,7 +1602,8 @@ document.querySelector('#waterMotionButton').addEventListener('click',e=>{
   if(!waterMotionEnhanced)clearWaterMotion();
 });
 document.querySelector('#waterColorButton').addEventListener('click',e=>{
-  greenWaterEnabled=!greenWaterEnabled;e.currentTarget.setAttribute('aria-pressed',greenWaterEnabled);
+  greenWaterEnabled=!greenWaterEnabled;e.currentTarget.setAttribute('aria-pressed',String(greenWaterEnabled));
+  e.currentTarget.setAttribute('aria-label',`${greenWaterEnabled?'Disable':'Enable'} jade pond mesh`);
   redrawWaterTint();
 });
 document.querySelector('#waveContrastButton').addEventListener('click',e=>{
@@ -2035,20 +2080,25 @@ function layout(){
     ripples.forEach(ripple=>{ripple.x*=scaleX;ripple.y*=scaleY;ripple.view?.position.set(ripple.x,ripple.y);});
   }
   lastLayoutWidth=app.screen.width;lastLayoutHeight=app.screen.height;
-  const cover=Math.max(app.screen.width/pondWaterTexture.width,app.screen.height/pondWaterTexture.height);
-  water.scale.set(cover);water.position.set(app.screen.width/2,app.screen.height/2);
-  refractedWater.scale.set(cover);refractedWater.position.copyFrom(water.position);
+  const textureScaleX=app.screen.width/pondWaterTexture.width;
+  const textureScaleY=app.screen.height/pondWaterTexture.height;
+  water.scale.set(textureScaleX,textureScaleY);water.position.set(app.screen.width/2,app.screen.height/2);
+  refractedWater.scale.set(textureScaleX,textureScaleY);refractedWater.position.copyFrom(water.position);
   rippleMapSprite.width=app.screen.width;rippleMapSprite.height=app.screen.height;
   waterShadeSprite.width=app.screen.width;waterShadeSprite.height=app.screen.height;
   // Keep the simulation in the uninterrupted water, not merely inside the
   // image's broad oval. The larger inset on the left/top clears the irregular
   // planted shoreline and also leaves room for a koi's head and tail.
-  pondArea.cx=water.x+pondWaterTexture.width*cover*.005;
-  pondArea.cy=water.y-pondWaterTexture.height*cover*.010;
-  pondArea.rx=pondWaterTexture.width*cover*.365;
-  pondArea.ry=pondWaterTexture.height*cover*.355;
-  const waterLeft=water.x-pondWaterTexture.width*cover/2,waterTop=water.y-pondWaterTexture.height*cover/2;
-  pondOutline=pondOutlineNormalized.flatMap(([nx,ny])=>[waterLeft+nx*pondWaterTexture.width*cover,waterTop+ny*pondWaterTexture.height*cover]);
+  pondArea.cx=water.x+pondWaterTexture.width*textureScaleX*.005;
+  pondArea.cy=water.y-pondWaterTexture.height*textureScaleY*.010;
+  pondArea.rx=pondWaterTexture.width*textureScaleX*.365;
+  pondArea.ry=pondWaterTexture.height*textureScaleY*.355;
+  const waterLeft=water.x-pondWaterTexture.width*textureScaleX/2;
+  const waterTop=water.y-pondWaterTexture.height*textureScaleY/2;
+  pondOutline=pondOutlineNormalized.flatMap(([nx,ny])=>[
+    waterLeft+nx*pondWaterTexture.width*textureScaleX,
+    waterTop+ny*pondWaterTexture.height*textureScaleY
+  ]);
   const sw=rippleMapCanvas.width,sh=rippleMapCanvas.height;
   for(let y=0;y<sh;y++)for(let x=0;x<sw;x++){
     const i=y*sw+x,edge=pondDistance(x/sw*app.screen.width,y/sh*app.screen.height);
@@ -2058,7 +2108,22 @@ function layout(){
   }
   displacementMap.position.set(app.screen.width/2,app.screen.height/2);
   displacementMap.width=app.screen.width+120;displacementMap.height=app.screen.height+120;
-  pondMask.clear().ellipse(pondArea.cx,pondArea.cy,pondArea.rx,pondArea.ry).fill(0xffffff);
+  // Rendering follows the irregular painted shoreline. The smoother ellipse
+  // above remains useful for creature movement, but exposing it as a mask
+  // produced a large circular seam in otherwise normal water.
+  pondMask.clear();
+  drawSmoothPondShape(pondMask).fill(0xffffff);
+  // Refraction needs a conservative water-only area. Keeping it inside the
+  // decorative shoreline prevents displaced copies of reeds, rocks, and
+  // flowers from being mistaken for moving water.
+  refractionMask.clear()
+    .ellipse(
+      pondArea.cx,
+      pondArea.cy-pondArea.ry*.015,
+      pondArea.rx*.94,
+      pondArea.ry*.88
+    )
+    .fill(0xffffff);
   redrawRainShade();
   rebuildWeatherClouds();
   syncWeatherLayerVisibility();
