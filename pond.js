@@ -637,14 +637,21 @@ const musicTracks=[
   {title:'Koi in Sunlight',url:koiInSunlightUrl,instrumental:true}
 ];
 let currentTrackIndex=3,trackFilter='instrumental';
-const gardenMusic=new Audio(musicTracks[currentTrackIndex].url);
+const gardenMusic=new Audio();
 gardenMusic.loop=false;
-gardenMusic.preload='auto';
+gardenMusic.preload='none';
 gardenMusic.volume=userVolume;
-gardenMusic.autoplay=true;
 gardenMusic.playsInline=true;
+let pondReadyForMusic=false;
 let musicAudioContext=null,musicAnalyser=null,musicMediaSource=null;
 let audioFrequencyData=null,audioTimeData=null;
+function ensureMusicSource(){
+  if(gardenMusic.getAttribute('src'))return;
+  gardenMusic.src=musicTracks[currentTrackIndex].url;
+  gardenMusic.preload='auto';
+  gardenMusic.load();
+  startupLog('Deferred music request started',musicTracks[currentTrackIndex].title);
+}
 async function enableMusicAnalysis(){
   if(!musicAudioContext){
     const AudioContextClass=window.AudioContext||window.webkitAudioContext;
@@ -670,6 +677,10 @@ function removeEarlyAudioUnlock(){
 function earlyAudioUnlock(event){
   if(event?.target?.closest?.('#soundButton,#musicPanelButton'))return;
   if(!audioOn){removeEarlyAudioUnlock();return;}
+  if(!pondReadyForMusic){
+    enableMusicAnalysis().catch(()=>{});
+    return;
+  }
   if(!gardenMusic.paused){
     enableMusicAnalysis().then(removeEarlyAudioUnlock).catch(()=>{});
     return;
@@ -2358,6 +2369,7 @@ canvas.addEventListener('pointerdown',()=>{
   musicPanelButton.setAttribute('aria-expanded','false');
 });
 async function startAmbientSoundscape(){
+  ensureMusicSource();
   gardenMusic.volume=userVolume;
   await gardenMusic.play();
   reflectAudioState(true);
@@ -2369,15 +2381,10 @@ gardenMusic.addEventListener('canplaythrough',()=>console.info('[KOI AUDIO] Pond
   duration:gardenMusic.duration,source:gardenMusic.currentSrc
 }),{once:true});
 gardenMusic.addEventListener('error',()=>console.error('[KOI AUDIO] MP3 failed to load',gardenMusic.error));
-startAmbientSoundscape().catch(error=>{
-  // Autoplay rejection is normal. Keep the desired-on state so the first
-  // non-control interaction can unlock playback.
-  console.info('[KOI AUDIO] Waiting for first interaction',error.name);
-});
 const unlockMusic=event=>{
   if(event.target.closest?.('#soundButton,#musicPanelButton'))return;
   if(audioOn)enableMusicAnalysis()
-    .then(()=>gardenMusic.paused?startAmbientSoundscape():undefined)
+    .then(()=>pondReadyForMusic&&gardenMusic.paused?startAmbientSoundscape():undefined)
     .catch(error=>console.warn('[KOI AUDIO] Interaction unlock failed',error));
 };
 window.addEventListener('pointerdown',unlockMusic,{capture:true});
@@ -2699,6 +2706,14 @@ app.ticker.add(ticker=>{
     firstRenderedFrame=true;
     setLoadingStage('ready','complete');
     document.body.classList.add('pond-ready');
+    pondReadyForMusic=true;
+    startAmbientSoundscape()
+      .then(removeEarlyAudioUnlock)
+      .catch(error=>{
+        // Autoplay rejection is normal. The already-registered interaction
+        // listeners will retry without making music block the pond startup.
+        console.info('[KOI AUDIO] Waiting for first interaction',error.name);
+      });
     startupLog('First animation frame rendered',{
       renderer:isCanvasRenderer?'canvas':'webgl',
       stageChildren:app.stage.children.length,
