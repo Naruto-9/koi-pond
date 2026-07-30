@@ -719,7 +719,8 @@ function makePelletTexture(variant=0){
   return Texture.from(c);
 }
 startupLog('Loading critical pond textures in parallel');
-const criticalAssetTotal=51;
+const INITIAL_KOI_TEXTURE_COUNT=4;
+const criticalAssetTotal=37;
 let criticalAssetsLoaded=0,criticalAssetsLoading=true;
 function getPondBackgroundFiles(mobile=useMobilePond){
   const prefix=mobile?'pond-water-mobile':'pond-water';
@@ -741,13 +742,14 @@ function timeOfDayFromDate(date=new Date()){
 const initialTimeOfDay=document.documentElement.dataset.time||timeOfDayFromDate();
 let mobileContentScale=useMobilePond?.5:1;
 const CREATURE_SPEED_REFERENCE_WIDTH=1920;
-let creatureSpeedMultiplier=1;
+let creatureSpeedMultiplier=.4;
 function creatureTravelScale(){
   // Preserve the perceived traversal time of the current desktop design.
   // A 390px-wide phone therefore travels at roughly 20% of desktop pixels
   // per frame instead of crossing its smaller pond several times faster.
   return Math.max(.18,Math.min(1.35,app.screen.width/CREATURE_SPEED_REFERENCE_WIDTH))*creatureSpeedMultiplier;
 }
+const frogTexturePromise=loadPondAsset('frog-cropped.png');
 const [
   koiTextures,
   frogTexture,
@@ -764,9 +766,9 @@ const [
   pelletTextures,
   animalFoodTextures
 ]=await Promise.all([
-  Promise.all(koiBreeds.slice(0,10).map(name=>loadPondAsset(`koi-${name}-cropped.png`))),
-  loadPondAsset('frog-cropped.png'),
-  Promise.all(Array.from({length:8},(_,index)=>loadPondAsset(`frog-swim-frame-${index+1}.png`))),
+  Promise.all(koiBreeds.slice(0,INITIAL_KOI_TEXTURE_COUNT).map(name=>loadPondAsset(`koi-${name}-cropped.png`))),
+  frogTexturePromise,
+  frogTexturePromise.then(texture=>Array(8).fill(texture)),
   loadPondAsset('turtle-cropped.png'),
   loadPondAsset(pondBackgroundFiles[initialTimeOfDay]),
   loadPondAsset('lotus-flower-cropped.png'),
@@ -808,6 +810,26 @@ async function loadDeferredKoiTextures(){
     koiTextures.push(texture);
   }
   startupLog('Deferred koi textures loaded',{count:koiTextures.length});
+}
+let deferredFrogFramesStarted=false;
+async function loadDeferredFrogFrames(){
+  if(deferredFrogFramesStarted)return;
+  deferredFrogFramesStarted=true;
+  startupLog('Loading deferred frog animation frames');
+  const textures=await Promise.all(
+    Array.from({length:8},(_,index)=>loadPondAsset(`frog-swim-frame-${index+1}.png`))
+  );
+  await prepareGpuResources(textures);
+  frogSwimTextures.splice(0,frogSwimTextures.length,...textures);
+  const swimScale=96/textures[0].height;
+  frogs.forEach(state=>{
+    state.swimScale=swimScale;
+    state.swimFrames.forEach((sprite,index)=>{
+      sprite.texture=textures[index];
+      sprite.scale.set(swimScale);
+    });
+  });
+  startupLog('Deferred frog animation frames loaded',{count:textures.length});
 }
 const turtles=[],frogs=[],floaters=[],dragonflies=[],hummingbirds=[],rabbits=[],nectarTargets=[];
 
@@ -1949,11 +1971,12 @@ document.querySelector('#lightningButton').addEventListener('click',()=>{
   setLightningEnabled(!lightningEnabled,{manual:true});
 });
 const creatureSpeedLevels=[
+  {label:'SLOWER',value:.4},
   {label:'SLOW',value:.6},
   {label:'NORMAL',value:1},
   {label:'FAST',value:1.5}
 ];
-let creatureSpeedLevel=1;
+let creatureSpeedLevel=0;
 document.querySelector('#creatureSpeedButton')?.addEventListener('click',event=>{
   creatureSpeedLevel=(creatureSpeedLevel+1)%creatureSpeedLevels.length;
   const level=creatureSpeedLevels[creatureSpeedLevel];
@@ -2607,6 +2630,7 @@ app.ticker.add(ticker=>{
     console.info('[KOI STARTUP COMPLETE] Pond initialized successfully.');
     const scheduleIdle=window.requestIdleCallback||((callback)=>setTimeout(callback,900));
     scheduleIdle(()=>loadDeferredKoiTextures().catch(showStartupError),{timeout:2500});
+    scheduleIdle(()=>loadDeferredFrogFrames().catch(showStartupError),{timeout:2200});
     scheduleIdle(()=>prepareGpuResources([
       ...frogSwimTextures,...rabbitFrames,...pelletTextures,...animalFoodTextures
     ]).catch(showStartupError),{timeout:1800});
@@ -2763,10 +2787,44 @@ app.ticker.add(ticker=>{
         }
         f.targetPad=f.preferredPad||(available[Math.floor(Math.random()*available.length)]||{view:f.carrier}).view;
         f.preferredPad=null;
+        const distanceToTarget=Math.hypot(f.targetPad.x-f.view.x,f.targetPad.y-f.view.y);
+        const targetIsPad=floaters.some(pad=>pad.isPad&&pad.view===f.targetPad);
         const a=Math.atan2(f.targetPad.y-f.view.y,f.targetPad.x-f.view.x);f.heading=a;
-        f.fromX=f.view.x;f.fromY=f.view.y;f.toX=f.view.x+Math.cos(a)*55*mobileContentScale;f.toY=f.view.y+Math.sin(a)*55*mobileContentScale;
-        f.view.rotation=a+Math.PI/2;f.mode='dive';f.progress=0;
-        f.duration=26*Math.max(1,mobileContentScale/creatureTravelScale());
+        f.fromX=f.view.x;f.fromY=f.view.y;f.progress=0;
+        f.view.rotation=a+Math.PI/2;
+        if(targetIsPad&&distanceToTarget<=190*mobileContentScale){
+          // Adjacent leaves are close enough for a clean pad-to-pad jump.
+          // Keep the resting silhouette visible and never enter the water.
+          f.toX=f.targetPad.x;f.toY=f.targetPad.y;f.mode='pad-hop';
+          f.duration=24*Math.max(1,mobileContentScale/creatureTravelScale());
+        }else{
+          f.toX=f.view.x+Math.cos(a)*55*mobileContentScale;
+          f.toY=f.view.y+Math.sin(a)*55*mobileContentScale;f.mode='dive';
+          f.duration=26*Math.max(1,mobileContentScale/creatureTravelScale());
+        }
+      }
+    }else if(f.mode==='pad-hop'){
+      f.progress+=delta/f.duration;
+      const p=Math.min(1,f.progress),ease=p*p*(3-2*p),lift=Math.sin(p*Math.PI);
+      f.view.x=f.fromX+(f.toX-f.fromX)*ease;
+      f.view.y=f.fromY+(f.toY-f.fromY)*ease-lift*34*mobileContentScale;
+      const stretch=Math.sin(p*Math.PI);
+      f.view.scale.set(f.baseScaleX*(1+stretch*.055),f.baseScaleY*(1-stretch*.07));
+      f.limbs.forEach(limb=>{
+        const extension=limb.kind==='hind'?.34:.13;
+        limb.view.rotation=limb.side*(limb.rest-stretch*extension);
+      });
+      if(p>=1){
+        f.carrier=f.targetPad;f.mode='rest';f.timer=240+Math.random()*180;
+        f.homeX=f.view.x;f.homeY=f.view.y;f.visitedPads.add(f.carrier);
+        f.view.scale.set(f.baseScaleX,f.baseScaleY);
+        const padState=floaters.find(pad=>pad.view===f.carrier);
+        if(padState){
+          const landingSpeed=.045*mobileContentScale;
+          padState.vx+=Math.cos(f.heading)*landingSpeed;
+          padState.vy+=Math.sin(f.heading)*landingSpeed+.09*mobileContentScale;
+          padState.angularVelocity+=(Math.random()-.5)*.004;
+        }
       }
     }else if(f.mode==='dive'){
       f.progress+=delta/f.duration;const p=Math.min(1,f.progress),ease=p*p*(3-2*p),lift=Math.sin(p*Math.PI);
