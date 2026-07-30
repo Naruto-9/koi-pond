@@ -269,6 +269,7 @@ const palettes = [
   ['#ded0aa', '#c25731', '#f4ead4']
 ];
 const fish = [], food = [], animalTreats=[], ripples = [], fishWakes=[], refractionRipples=[];
+const fishWakePool=[],pelletPool=[];
 let selectedFood='';
 let lastWakeAt=0,nextWindAt=performance.now()+7000+Math.random()*7000,windUntil=0,lastWindRipple=0,waterMotionEnhanced=true,greenWaterEnabled=false,waveContrastEnabled=false;
 const rainShade=new Graphics();
@@ -283,7 +284,7 @@ const lightningBolt=new Graphics();
 lightningBolt.visible=false;weatherLayer.addChild(lightningBolt);
 const placementGuide=new Graphics();
 focusLayer.addChild(placementGuide);
-const rainDrops=[],rainImpacts=[];
+const rainDrops=[],rainImpacts=[],rainImpactPool=[];
 const weatherClouds=[];
 let cloudyEnabled=false,cloudyManualOverride=false;
 let rainEnabled=false,rainManualOverride=false,lastRainImpact=0;
@@ -397,8 +398,14 @@ function resetRainDrop(drop,initial=false){
 }
 function addRainImpact(x,y){
   if(rainImpacts.length>=28)return;
-  const view=new Graphics();view.position.set(x,y);rainLayer.addChildAt(view,0);
-  rainImpacts.push({view,age:0,life:18,phase:Math.random()*Math.PI*2});
+  const impact=rainImpactPool.pop()||{view:new Graphics(),age:0,life:18,phase:0};
+  impact.age=0;impact.life=18;impact.phase=Math.random()*Math.PI*2;
+  impact.view.clear();impact.view.visible=true;impact.view.position.set(x,y);
+  rainLayer.addChildAt(impact.view,0);rainImpacts.push(impact);
+}
+function releaseRainImpact(impact){
+  impact.view.clear();impact.view.removeFromParent();impact.view.visible=false;
+  if(rainImpactPool.length<28)rainImpactPool.push(impact);
 }
 function updateRainImpacts(delta){
   for(let i=rainImpacts.length-1;i>=0;i--){
@@ -414,7 +421,7 @@ function updateRainImpacts(delta){
         .stroke({width:.65,color:0xe8f4ef,alpha:fade*.68});
     }
     if(impact.age>=impact.life){
-      impact.view.destroy();rainImpacts.splice(i,1);
+      releaseRainImpact(impact);rainImpacts.splice(i,1);
     }
   }
 }
@@ -436,7 +443,7 @@ function setRainEnabled(enabled,{manual=false,weatherLabel=''}={}){
   rainLayer.visible=rainEnabled;
   syncWeatherLayerVisibility();
   if(!rainEnabled){
-    rainImpacts.forEach(impact=>impact.view.destroy());
+    rainImpacts.forEach(releaseRainImpact);
     rainImpacts.length=0;
   }
   document.body.classList.toggle('is-raining',rainEnabled);
@@ -977,7 +984,7 @@ function updateRippleRefraction(){
 updateRippleRefraction();
 function clearWaterMotion(){
   waterHeight.fill(0);waterPrevious.fill(0);waterNext.fill(0);waterEnergy=0;
-  for(const wake of fishWakes)wake.view.destroy();fishWakes.length=0;
+  for(const wake of fishWakes)releaseFishWake(wake);fishWakes.length=0;
   const displacement=rippleImage.data;for(let i=0;i<displacement.length;i+=4){displacement[i]=128;displacement[i+1]=128;displacement[i+2]=128;displacement[i+3]=255;}
   shadeImage.data.fill(0);
   rippleMapContext.putImageData(rippleImage,0,0);rippleMapTexture.source.update();
@@ -1525,8 +1532,23 @@ function addFishWake(x,y,angle,intensity){
   if(!waterMotionEnhanced)return;
   disturbWater(x,y,intensity*.12,7,angle+Math.PI);
   if(fishWakes.length>16)return;
-  const view=new Graphics();view.position.set(x,y);view.rotation=angle;surfaceLayer.addChild(view);
-  fishWakes.push({view,age:0,life:22+Math.random()*7,intensity,phase:Math.random()*Math.PI*2});
+  const wake=fishWakePool.pop()||{view:new Graphics(),age:0,life:0,intensity:0,phase:0};
+  wake.age=0;wake.life=22+Math.random()*7;wake.intensity=intensity;wake.phase=Math.random()*Math.PI*2;
+  wake.view.clear();wake.view.visible=true;wake.view.position.set(x,y);wake.view.rotation=angle;
+  surfaceLayer.addChild(wake.view);fishWakes.push(wake);
+}
+function releaseFishWake(wake){
+  wake.view.clear();wake.view.removeFromParent();wake.view.visible=false;
+  if(fishWakePool.length<17)fishWakePool.push(wake);
+}
+function acquirePellet(texture){
+  const pellet=pelletPool.pop()||new Sprite(texture);
+  pellet.texture=texture;pellet.visible=true;pellet.anchor.set(.5);
+  return pellet;
+}
+function releasePellet(pellet){
+  pellet.removeFromParent();pellet.visible=false;pellet.alpha=0;
+  if(pelletPool.length<40)pelletPool.push(pellet);
 }
 function drawFishWake(w){
   const g=w.view,p=w.age/w.life,fade=Math.pow(1-p,1.7)*w.intensity;
@@ -1579,9 +1601,9 @@ function feedFish(x,y){
   for(let i=0;i<Math.max(12,Math.min(20,fish.length));i++){
     const angle=Math.random()*Math.PI*2,distance=5+Math.random()*24;
     const px=x+Math.cos(angle)*distance,py=y+Math.sin(angle)*distance*.62;
-    const pellet=new Sprite(pelletTextures[Math.floor(Math.random()*pelletTextures.length)]);
+    const pellet=acquirePellet(pelletTextures[Math.floor(Math.random()*pelletTextures.length)]);
     const pelletScale=.046+Math.random()*.018;
-    pellet.anchor.set(.5);pellet.position.set(px,py);pellet.scale.set(pelletScale);pellet.alpha=0;pellet.rotation=Math.random()*Math.PI;
+    pellet.position.set(px,py);pellet.scale.set(pelletScale);pellet.alpha=0;pellet.rotation=Math.random()*Math.PI;
     surfaceLayer.addChild(pellet);
     food.push({view:pellet,x:px,y:py,state:'settling',life:2.4+Math.random()*.7,age:0,delay:i*.8+Math.random()*3,bob:Math.random()*7,scale:pelletScale,claimedBy:null});
   }
@@ -2933,12 +2955,12 @@ app.ticker.add(ticker=>{
     } else {
       f.life-=.0014*delta;f.x+=Math.sin(now*.0008+f.bob)*.008*delta;f.y+=.006*delta;
       if(f.view){f.view.position.set(f.x,f.y);f.view.alpha=Math.min(.86,Math.max(0,f.life));}
-      if(f.life<=0){if(f.view)f.view.destroy();food.splice(i,1)}
+      if(f.life<=0){if(f.view)releasePellet(f.view);food.splice(i,1)}
     }
   }
   for(let i=fishWakes.length-1;i>=0;i--){
     const wake=fishWakes[i];wake.age+=delta;drawFishWake(wake);
-    if(wake.age>=wake.life){wake.view.destroy();fishWakes.splice(i,1);}
+    if(wake.age>=wake.life){releaseFishWake(wake);fishWakes.splice(i,1);}
   }
   for(let i=ripples.length-1;i>=0;i--){
     const r=ripples[i];r.age+=delta;drawRipple(r);
