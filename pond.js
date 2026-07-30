@@ -11,6 +11,7 @@ import {
   canFrogHopToPad,
   frogSwimScale
 } from './pond-behavior.js';
+import {bundledAssets,pondAssetFormat} from '@pond-asset-manifest';
 import koiInSunlightUrl from './assets/Koi_in_Sunlight.mp3';
 import weightOfAmberUrl from './assets/The_Weight_of_Amber.mp3';
 import beneathTheGlassUrl from './assets/Beneath_the_Glass.mp3';
@@ -680,45 +681,10 @@ window.addEventListener('pointerdown',earlyAudioUnlock,{capture:true,passive:tru
 window.addEventListener('touchstart',earlyAudioUnlock,{capture:true,passive:true});
 window.addEventListener('keydown',earlyAudioUnlock,{capture:true});
 const koiBreeds=['kohaku','sanke','showa','ogon','shiro-utsuri','hi-utsuri','ki-utsuri','bekko','asagi','shusui','tancho','goshiki','goromo','ochiba','chagoi','soragoi','platinum-ogon','kujaku','matsuba','hariwake'];
-const bundledAssets=import.meta.glob([
-  './assets/koi-*-cropped.{png,webp}',
-  './assets/pebble-[1-6].{png,webp}',
-  './assets/pellet-[1-9].{png,webp}',
-  './assets/pellet-1[0-2].{png,webp}',
-  './assets/food-*.{png,webp}',
-  './assets/dragonfly.{png,webp}',
-  './assets/hummingbird.{png,webp}',
-  './assets/rabbit-sheet-clean.{png,webp}',
-  './assets/cardinal-flower.{png,webp}',
-  './assets/canna-lily.{png,webp}',
-  './assets/water-iris.{png,webp}',
-  './assets/red-salvia.{png,webp}',
-  './assets/frog-cropped.{png,webp}',
-  './assets/frog-swim-frame-[1-8].{png,webp}',
-  './assets/turtle-cropped.{png,webp}',
-  './assets/pond-water.{png,webp}',
-  './assets/pond-water-morning.{png,webp}',
-  './assets/pond-water-afternoon.{png,webp}',
-  './assets/pond-water-night.{png,webp}',
-  './assets/pond-water-mobile.{png,webp}',
-  './assets/pond-water-mobile-morning.{png,webp}',
-  './assets/pond-water-mobile-afternoon.{png,webp}',
-  './assets/pond-water-mobile-night.{png,webp}',
-  './assets/lotus-flower-cropped.{png,webp}',
-  './assets/lotus-leaf-cropped.{png,webp}'
-],{eager:true,query:'?url',import:'default'});
-const supportsWebP=(()=>{
-  try{
-    const probe=document.createElement('canvas');
-    probe.width=probe.height=1;
-    return probe.toDataURL('image/webp').startsWith('data:image/webp');
-  }catch{return false;}
-})();
-startupLog('Vite asset manifest ready',{entries:Object.keys(bundledAssets).length,supportsWebP});
+startupLog('Vite asset manifest ready',{entries:Object.keys(bundledAssets).length,format:pondAssetFormat});
 const assetPath=name=>{
-  const webpName=name.replace(/\.png$/i,'.webp');
-  const preferredName=supportsWebP?webpName:name;
-  const url=bundledAssets[`./assets/${preferredName}`]||bundledAssets[`./assets/${name}`];
+  const formattedName=name.replace(/\.(?:png|webp)$/i,`.${pondAssetFormat}`);
+  const url=bundledAssets[`./assets/${formattedName}`];
   if(!url)throw new Error(`Asset is missing from the Vite bundle: ${name}`);
   return url;
 };
@@ -744,7 +710,7 @@ function makePelletTexture(variant=0){
 }
 startupLog('Loading critical pond textures in parallel');
 const INITIAL_KOI_TEXTURE_COUNT=4;
-const criticalAssetTotal=37;
+const criticalAssetTotal=22;
 let criticalAssetsLoaded=0,criticalAssetsLoading=true;
 function getPondBackgroundFiles(mobile=useMobilePond){
   const prefix=mobile?'pond-water-mobile':'pond-water';
@@ -807,19 +773,39 @@ const [
   loadPondAsset('hummingbird.png'),
   loadPondAsset('rabbit-sheet-clean.png'),
   Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset)),
-  Promise.all(Array.from({length:12},(_,i)=>loadPondAsset(`pellet-${i+1}.png`))),
-  Promise.all([
-    loadPondAsset('food-turtle-lettuce.png'),
-    loadPondAsset('food-frog-cricket.png'),
-    loadPondAsset('food-rabbit-carrot.png')
-  ])
+  Promise.resolve(Array.from({length:12},(_,index)=>makePelletTexture(index))),
+  Promise.resolve([Texture.EMPTY,Texture.EMPTY,Texture.EMPTY])
 ]);
 criticalAssetsLoading=false;
 const pondWaterTextures={[initialTimeOfDay]:initialPondWaterTexture};
 let currentTimeOfDay=initialTimeOfDay;
 let pondWaterTexture=pondWaterTextures[currentTimeOfDay];
-startupLog('Critical pond textures loaded',{koi:koiTextures.length,pebbles:pebbleTextures.length,pellets:pelletTextures.length});
+startupLog('Critical pond textures loaded',{koi:koiTextures.length,pebbles:pebbleTextures.length,interactionAssets:'deferred'});
 setLoadingStage('assets','complete');setLoadingStage('koi');
+let interactionAssetsPromise=null;
+function ensureInteractionAssets(){
+  if(interactionAssetsPromise)return interactionAssetsPromise;
+  startupLog('Loading interaction textures on demand');
+  interactionAssetsPromise=Promise.all([
+    Promise.all(Array.from({length:12},(_,index)=>loadPondAsset(`pellet-${index+1}.png`))),
+    Promise.all([
+      loadPondAsset('food-turtle-lettuce.png'),
+      loadPondAsset('food-frog-cricket.png'),
+      loadPondAsset('food-rabbit-carrot.png')
+    ])
+  ]).then(async([loadedPellets,loadedAnimalFood])=>{
+    await prepareGpuResources([...loadedPellets,...loadedAnimalFood]);
+    pelletTextures.splice(0,pelletTextures.length,...loadedPellets);
+    animalFoodTextures.splice(0,animalFoodTextures.length,...loadedAnimalFood);
+    startupLog('Interaction textures ready',{
+      pellets:loadedPellets.length,animalFood:loadedAnimalFood.length
+    });
+  }).catch(error=>{
+    interactionAssetsPromise=null;
+    throw error;
+  });
+  return interactionAssetsPromise;
+}
 let deferredKoiLoadStarted=false;
 async function loadDeferredKoiTextures(){
   if(deferredKoiLoadStarted||koiTextures.length>=koiBreeds.length)return;
@@ -1942,10 +1928,16 @@ function touchPond(x,y){
 document.querySelectorAll('[data-food]').forEach(button=>button.addEventListener('click',event=>{
   event.stopPropagation();
   selectedFood=button.dataset.food;
+  if(selectedFood)ensureInteractionAssets().catch(showStartupError);
   document.querySelectorAll('[data-food]').forEach(option=>option.setAttribute('aria-checked',String(option===button)));
 }));
-canvas.addEventListener('pointerup',e=>{
-  if(performance.now()-lastCreatureClick>140)touchPond(e.clientX,e.clientY);
+canvas.addEventListener('pointerup',async e=>{
+  if(performance.now()-lastCreatureClick<=140)return;
+  if(selectedFood){
+    try{await ensureInteractionAssets()}
+    catch(error){showStartupError(error);return}
+  }
+  touchPond(e.clientX,e.clientY);
 });
 const controlsMenuButton=document.querySelector('#controlsMenuButton');
 const pondControls=document.querySelector('#pondControls');

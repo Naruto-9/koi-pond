@@ -1,0 +1,28 @@
+export const pondAssetFormat='png';
+export const bundledAssets=import.meta.glob([
+  './assets/koi-*-cropped.png',
+  './assets/pebble-[1-6].png',
+  './assets/pellet-[1-9].png',
+  './assets/pellet-1[0-2].png',
+  './assets/food-*.png',
+  './assets/dragonfly.png',
+  './assets/hummingbird.png',
+  './assets/rabbit-sheet-clean.png',
+  './assets/cardinal-flower.png',
+  './assets/canna-lily.png',
+  './assets/water-iris.png',
+  './assets/red-salvia.png',
+  './assets/frog-cropped.png',
+  './assets/frog-swim-frame-[1-8].png',
+  './assets/turtle-cropped.png',
+  './assets/pond-water.png',
+  './assets/pond-water-morning.png',
+  './assets/pond-water-afternoon.png',
+  './assets/pond-water-night.png',
+  './assets/pond-water-mobile.png',
+  './assets/pond-water-mobile-morning.png',
+  './assets/pond-water-mobile-afternoon.png',
+  './assets/pond-water-mobile-night.png',
+  './assets/lotus-flower-cropped.png',
+  './assets/lotus-leaf-cropped.png'
+],{eager:true,query:'?url',import:'default'});

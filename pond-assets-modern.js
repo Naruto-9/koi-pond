@@ -1,0 +1,28 @@
+export const pondAssetFormat='webp';
+export const bundledAssets=import.meta.glob([
+  './assets/koi-*-cropped.webp',
+  './assets/pebble-[1-6].webp',
+  './assets/pellet-[1-9].webp',
+  './assets/pellet-1[0-2].webp',
+  './assets/food-*.webp',
+  './assets/dragonfly.webp',
+  './assets/hummingbird.webp',
+  './assets/rabbit-sheet-clean.webp',
+  './assets/cardinal-flower.webp',
+  './assets/canna-lily.webp',
+  './assets/water-iris.webp',
+  './assets/red-salvia.webp',
+  './assets/frog-cropped.webp',
+  './assets/frog-swim-frame-[1-8].webp',
+  './assets/turtle-cropped.webp',
+  './assets/pond-water.webp',
+  './assets/pond-water-morning.webp',
+  './assets/pond-water-afternoon.webp',
+  './assets/pond-water-night.webp',
+  './assets/pond-water-mobile.webp',
+  './assets/pond-water-mobile-morning.webp',
+  './assets/pond-water-mobile-afternoon.webp',
+  './assets/pond-water-mobile-night.webp',
+  './assets/lotus-flower-cropped.webp',
+  './assets/lotus-leaf-cropped.webp'
+],{eager:true,query:'?url',import:'default'});
