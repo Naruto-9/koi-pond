@@ -3245,3 +3245,16 @@ app.ticker.add(ticker=>{
   }
   recordDiagnostics(now,diagnosticsWaterMs,diagnosticsCreatureMs);
 });
+
+if(import.meta.env.PROD&&'serviceWorker' in navigator){
+  const registerPondWorker=()=>{
+    const register=()=>navigator.serviceWorker
+      .register(new URL('sw.js',document.baseURI),{scope:'./'})
+      .then(registration=>startupLog('Repeat-visit cache ready',registration.scope))
+      .catch(error=>console.warn('[KOI CACHE] Service worker registration failed',error));
+    if('requestIdleCallback' in window)requestIdleCallback(register,{timeout:4000});
+    else setTimeout(register,1200);
+  };
+  if(document.readyState==='complete')registerPondWorker();
+  else window.addEventListener('load',registerPondWorker,{once:true});
+}
