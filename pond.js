@@ -688,6 +688,14 @@ const assetPath=name=>{
   if(!url)throw new Error(`Asset is missing from the Vite bundle: ${name}`);
   return url;
 };
+const rootStyle=document.documentElement.style;
+rootStyle.setProperty('--watcher-boy-sip',`url("${assetPath('pond-boy-sip-sheet-aligned.png')}")`);
+rootStyle.setProperty('--watcher-girl-sip',`url("${assetPath('pond-girl-sip-sheet-aligned.png')}")`);
+rootStyle.setProperty('--watcher-boy-rain',`url("${assetPath('pond-boy-rain-sheet.png')}")`);
+rootStyle.setProperty('--watcher-girl-rain',`url("${assetPath('pond-girl-rain-sheet.png')}")`);
+document.querySelectorAll('[data-pond-asset]').forEach(image=>{
+  image.src=assetPath(image.dataset.pondAsset);
+});
 async function loadPondAsset(name){
   const url=assetPath(name);
   startupLog(`Loading asset: ${name}`,url);

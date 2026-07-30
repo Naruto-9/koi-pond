@@ -4,6 +4,10 @@
   --mist: #aab9ae;
   --line: rgba(226, 236, 222, .17);
   --pond-first-paint: #176887;
+  --watcher-boy-sip: none;
+  --watcher-girl-sip: none;
+  --watcher-boy-rain: none;
+  --watcher-girl-rain: none;
 }
 
 * { box-sizing: border-box; }
@@ -273,10 +277,10 @@ h1 em { color: #b7ae8c; font-weight: 400; }
 .pond-watcher.is-sipping { animation-play-state:paused; }
 body.is-raining .pond-watcher { animation:none; }
 .watcher-sprite { position:absolute; z-index:2; inset:0; filter:sepia(.07) saturate(.84) brightness(.94) contrast(.97) drop-shadow(0 10px 13px rgba(39,25,17,.18)); }
-.watcher-frame { position:absolute; inset:0; display:block; opacity:1; background-image:url("./assets/pond-boy-sip-sheet-aligned.png"); background-repeat:no-repeat; background-size:300% 200%; transform-origin:50% 88%; }
-.pond-watcher[data-character="girl"] .watcher-frame { background-image:url("./assets/pond-girl-sip-sheet-aligned.png"); }
-body.is-raining .pond-watcher[data-character="boy"] .watcher-frame { background-image:url("./assets/pond-boy-rain-sheet.png"); }
-body.is-raining .pond-watcher[data-character="girl"] .watcher-frame { background-image:url("./assets/pond-girl-rain-sheet.png"); }
+.watcher-frame { position:absolute; inset:0; display:block; opacity:1; background-image:var(--watcher-boy-sip); background-repeat:no-repeat; background-size:300% 200%; transform-origin:50% 88%; }
+.pond-watcher[data-character="girl"] .watcher-frame { background-image:var(--watcher-girl-sip); }
+body.is-raining .pond-watcher[data-character="boy"] .watcher-frame { background-image:var(--watcher-boy-rain); }
+body.is-raining .pond-watcher[data-character="girl"] .watcher-frame { background-image:var(--watcher-girl-rain); }
 body.is-raining .pond-watcher .frame-1,
 body.is-raining .pond-watcher .frame-2,
 body.is-raining .pond-watcher .frame-3,
