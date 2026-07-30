@@ -186,6 +186,15 @@ const focusLayer = new Container();
 const pondMask = new Graphics();
 const refractionMask = new Graphics();
 app.stage.addChild(waterLayer, refractedWaterLayer, waterMotionLayer, waterTintLayer, bankPlantLayer, shorelineLayer, decorLayer, shadowLayer, fishLayer, floatingLayer, lightingLayer, surfaceLayer, aerialLayer, weatherLayer, rainLayer, focusLayer, pondMask, refractionMask);
+// Pointer placement is handled by the canvas itself. Keep Pixi's federated
+// event traversal focused on layers that actually contain inspectable objects.
+[
+  waterLayer,refractedWaterLayer,waterMotionLayer,waterTintLayer,shorelineLayer,
+  shadowLayer,lightingLayer,surfaceLayer,weatherLayer,rainLayer,pondMask,refractionMask
+].forEach(layer=>{
+  layer.eventMode='none';
+  if('interactiveChildren' in layer)layer.interactiveChildren=false;
+});
 startupLog('Scene layers created',{stageChildren:app.stage.children.length});
 refractedWaterLayer.mask=refractionMask;waterMotionLayer.mask=refractionMask;waterTintLayer.mask=pondMask;shorelineLayer.mask=pondMask;decorLayer.mask=pondMask;shadowLayer.mask=pondMask;fishLayer.mask=pondMask;floatingLayer.mask=pondMask;lightingLayer.mask=pondMask;surfaceLayer.mask=pondMask;
 const pondArea={cx:0,cy:0,rx:1,ry:1};
@@ -353,6 +362,9 @@ function rebuildWeatherClouds(){
     const x=(i/(count-1))*app.screen.width+(Math.random()-.5)*baseSize*.7;
     const baseY=app.screen.height*(.015+Math.random()*.21);
     view.position.set(x,baseY);cloudLayer.addChild(view);
+    // The cloud's many Graphics children never deform; only this parent moves.
+    // Cache once after assembly and reuse the same pixels during drifting.
+    view.cacheAsTexture();
     weatherClouds.push({view,size,baseY,speed:.009+Math.random()*.014,phase:Math.random()*Math.PI*2});
   }
 }
@@ -1063,7 +1075,7 @@ function buildPondDecor(){
   if(useMobilePond){const safe=constrainToPond(frogLeaf.x,frogLeaf.y,Math.max(frogLeaf.width,frogLeaf.height)*.56+4);frogLeaf.position.set(safe.x,safe.y);}
   frogLeaf.rotation=-.5;frogLeaf.alpha=.8;floatingLayer.addChild(frogLeaf);
   const builtFrog=makeFrog(),frog=builtFrog.root;frog.scale.set(mobileContentScale);frog.position.copyFrom(frogLeaf.position);frog.rotation=-.35;frog.alpha=.92;floatingLayer.addChild(frog);
-  frog.eventMode='static';frog.cursor='pointer';frog.on('pointertap',()=>focusCreature({kind:'frogs',view:frog,name:'Pond Frog',type:'AMPHIBIAN',text:'Pond frogs divide their time between floating vegetation and the water. Their stillness, sudden hops, and sensitive skin make them excellent indicators of a healthy pond habitat.'}));
+  frog.eventMode='static';frog.hitArea=new Rectangle(-52,-38,104,76);frog.cursor='pointer';frog.on('pointertap',()=>focusCreature({kind:'frogs',view:frog,name:'Pond Frog',type:'AMPHIBIAN',text:'Pond frogs divide their time between floating vegetation and the water. Their stillness, sudden hops, and sensitive skin make them excellent indicators of a healthy pond habitat.'}));
   const frogState={view:frog,restPose:builtFrog.restPose,swimFrames:builtFrog.swimFrames,swimScale:builtFrog.swimScale,limbs:builtFrog.limbs,homeX:frog.x,homeY:frog.y,fromX:frog.x,fromY:frog.y,toX:frog.x,toY:frog.y,phase:Math.random()*6,mode:'rest',timer:28+Math.random()*22,progress:0,duration:32,baseScaleX:frog.scale.x,baseScaleY:frog.scale.y,carrier:frogLeaf,targetPad:null,visitedPads:new Set([frogLeaf]),heading:frog.rotation-Math.PI/2,strokeClock:0,underwater:false};
   frogs.push(frogState);
   floaters.push({view:frogLeaf,isPad:true,homeX:frogLeaf.x,homeY:frogLeaf.y,baseRotation:frogLeaf.rotation,phase:4.7,amount:1,vx:0,vy:0,angularVelocity:0,radius:41*mobileContentScale,maxDrift:24*mobileContentScale});
@@ -1078,10 +1090,17 @@ function buildPondDecor(){
     mesh.scale.set(scale);mesh.position.set(-turtleSize/2,-turtleTexture.height*scale/2);turtle.addChild(mesh);decorLayer.addChild(turtle);
     const buffer=isCanvasRenderer?null:mesh.geometry.getAttribute('aPosition').buffer;
     const turtleHeight=turtleTexture.height*scale;
+    turtle.hitArea=new Rectangle(-turtleSize*.54,-turtleHeight*.58,turtleSize*1.08,turtleHeight*1.16);
     turtles.push({view:turtle,mesh,buffer,rest:buffer?new Float32Array(buffer.data):null,mouthOffset:turtleHeight*.49,cruiseSpeed:i ? .055 : .038,heading:turtle.rotation-Math.PI/2,speed:i ? .055 : .038,phase:i*2.8+Math.random(),turnSeed:Math.random()*9,strokeRate:i ? .0054 : .0038});
   });
 
-  const addInspectable=(view,kind,name,type,text)=>{view.eventMode='static';view.cursor='pointer';view.on('pointertap',()=>focusCreature({kind,view,name,type,text}));};
+  const addInspectable=(view,kind,name,type,text)=>{
+    const bounds=view.getLocalBounds();
+    view.eventMode='static';
+    view.hitArea=new Rectangle(bounds.x,bounds.y,bounds.width,bounds.height);
+    view.cursor='pointer';
+    view.on('pointertap',()=>focusCreature({kind,view,name,type,text}));
+  };
   [[.47,.22],[.69,.61]].forEach((d,i)=>{
     const built=makeDragonfly(),view=built.root;view.position.set(w*d[0],h*d[1]);view.rotation=i?2.2:-.6;view.scale.set(mobileContentScale);view.alpha=.88;aerialLayer.addChild(view);
     addInspectable(view,'dragonflies','Pond Dragonfly','AERIAL INSECT','An agile aerial predator, the dragonfly patrols above the water, hovering almost motionless before accelerating into a sudden dart.');
@@ -1335,7 +1354,7 @@ class Koi {
     this.breed=koiBreeds[breedIndex%koiBreeds.length];
     this.koiTexture=koiTextures[breedIndex%koiTextures.length];
     this.view=new Container(); this.view.position.set(this.x,this.y); this.view.rotation=this.angle;
-    this.view.eventMode='static';this.view.cursor='pointer';
+    this.view.eventMode='static';this.view.hitArea=new Rectangle(-108,-58,216,116);this.view.cursor='pointer';
     this.view.on('pointertap',()=>focusCreature({kind:'koi',view:this.view,entity:this,name:prettyBreed(this.breed),type:'KOI VARIETY',text:koiFacts[this.breed]||`${prettyBreed(this.breed)} is a distinctive ornamental carp variety, selected over generations for its color, scale texture, and pattern.`}));
     this.body=isCanvasRenderer?new Sprite(this.koiTexture):new MeshPlane({texture:this.koiTexture,verticesX:14,verticesY:5});
     this.body.scale.set(205/this.koiTexture.width);
