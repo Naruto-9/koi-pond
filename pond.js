@@ -4,6 +4,7 @@ import {
   WebGLRenderer, CanvasRenderer
 } from 'pixi.js';
 import 'pixi.js/browser';
+import 'pixi.js/prepare';
 import koiInSunlightUrl from './assets/Koi_in_Sunlight.mp3';
 import weightOfAmberUrl from './assets/The_Weight_of_Amber.mp3';
 import beneathTheGlassUrl from './assets/Beneath_the_Glass.mp3';
@@ -164,6 +165,11 @@ try {
 // Constructor names are minified in production, so use Pixi's stable renderer
 // identifier rather than a class-name string.
 const isCanvasRenderer=app.renderer.type===RendererType.CANVAS;
+async function prepareGpuResources(resources){
+  if(isCanvasRenderer||!app.renderer.prepare)return;
+  const list=(Array.isArray(resources)?resources:[resources]).filter(Boolean);
+  if(list.length)await app.renderer.prepare.upload(list);
+}
 startupLog('Renderer selected',{type:app.renderer.type,isCanvasRenderer});
 setLoadingStage('renderer','complete');setLoadingStage('assets');
 
@@ -199,6 +205,7 @@ startupLog('Scene layers created',{stageChildren:app.stage.children.length});
 refractedWaterLayer.mask=refractionMask;waterMotionLayer.mask=refractionMask;waterTintLayer.mask=pondMask;shorelineLayer.mask=pondMask;decorLayer.mask=pondMask;shadowLayer.mask=pondMask;fishLayer.mask=pondMask;floatingLayer.mask=pondMask;lightingLayer.mask=pondMask;surfaceLayer.mask=pondMask;
 const pondArea={cx:0,cy:0,rx:1,ry:1};
 const pondFilterArea=new Rectangle();
+const screenBoundsArea=new Rectangle();
 let pondOutline=[];
 // Normalized points trace the painted waterline clockwise. They are converted
 // to a smooth closed curve below, so the optional mesh follows the organic
@@ -650,35 +657,44 @@ window.addEventListener('touchstart',earlyAudioUnlock,{capture:true,passive:true
 window.addEventListener('keydown',earlyAudioUnlock,{capture:true});
 const koiBreeds=['kohaku','sanke','showa','ogon','shiro-utsuri','hi-utsuri','ki-utsuri','bekko','asagi','shusui','tancho','goshiki','goromo','ochiba','chagoi','soragoi','platinum-ogon','kujaku','matsuba','hariwake'];
 const bundledAssets=import.meta.glob([
-  './assets/koi-*-cropped.png',
-  './assets/pebble-[1-6].png',
-  './assets/pellet-[1-9].png',
-  './assets/pellet-1[0-2].png',
-  './assets/food-*.png',
-  './assets/dragonfly.png',
-  './assets/hummingbird.png',
-  './assets/rabbit-sheet-clean.png',
-  './assets/cardinal-flower.png',
-  './assets/canna-lily.png',
-  './assets/water-iris.png',
-  './assets/red-salvia.png',
-  './assets/frog-cropped.png',
-  './assets/frog-swim-frame-[1-8].png',
-  './assets/turtle-cropped.png',
-  './assets/pond-water.png',
-  './assets/pond-water-morning.png',
-  './assets/pond-water-afternoon.png',
-  './assets/pond-water-night.png',
-  './assets/pond-water-mobile.png',
-  './assets/pond-water-mobile-morning.png',
-  './assets/pond-water-mobile-afternoon.png',
-  './assets/pond-water-mobile-night.png',
-  './assets/lotus-flower-cropped.png',
-  './assets/lotus-leaf-cropped.png'
+  './assets/koi-*-cropped.{png,webp}',
+  './assets/pebble-[1-6].{png,webp}',
+  './assets/pellet-[1-9].{png,webp}',
+  './assets/pellet-1[0-2].{png,webp}',
+  './assets/food-*.{png,webp}',
+  './assets/dragonfly.{png,webp}',
+  './assets/hummingbird.{png,webp}',
+  './assets/rabbit-sheet-clean.{png,webp}',
+  './assets/cardinal-flower.{png,webp}',
+  './assets/canna-lily.{png,webp}',
+  './assets/water-iris.{png,webp}',
+  './assets/red-salvia.{png,webp}',
+  './assets/frog-cropped.{png,webp}',
+  './assets/frog-swim-frame-[1-8].{png,webp}',
+  './assets/turtle-cropped.{png,webp}',
+  './assets/pond-water.{png,webp}',
+  './assets/pond-water-morning.{png,webp}',
+  './assets/pond-water-afternoon.{png,webp}',
+  './assets/pond-water-night.{png,webp}',
+  './assets/pond-water-mobile.{png,webp}',
+  './assets/pond-water-mobile-morning.{png,webp}',
+  './assets/pond-water-mobile-afternoon.{png,webp}',
+  './assets/pond-water-mobile-night.{png,webp}',
+  './assets/lotus-flower-cropped.{png,webp}',
+  './assets/lotus-leaf-cropped.{png,webp}'
 ],{eager:true,query:'?url',import:'default'});
-startupLog('Vite asset manifest ready',{entries:Object.keys(bundledAssets).length});
+const supportsWebP=(()=>{
+  try{
+    const probe=document.createElement('canvas');
+    probe.width=probe.height=1;
+    return probe.toDataURL('image/webp').startsWith('data:image/webp');
+  }catch{return false;}
+})();
+startupLog('Vite asset manifest ready',{entries:Object.keys(bundledAssets).length,supportsWebP});
 const assetPath=name=>{
-  const url=bundledAssets[`./assets/${name}`];
+  const webpName=name.replace(/\.png$/i,'.webp');
+  const preferredName=supportsWebP?webpName:name;
+  const url=bundledAssets[`./assets/${preferredName}`]||bundledAssets[`./assets/${name}`];
   if(!url)throw new Error(`Asset is missing from the Vite bundle: ${name}`);
   return url;
 };
@@ -787,7 +803,9 @@ async function loadDeferredKoiTextures(){
   });
   for(const name of remainingBreeds){
     await yieldToBrowser();
-    koiTextures.push(await loadPondAsset(`koi-${name}-cropped.png`));
+    const texture=await loadPondAsset(`koi-${name}-cropped.png`);
+    await prepareGpuResources(texture);
+    koiTextures.push(texture);
   }
   startupLog('Deferred koi textures loaded',{count:koiTextures.length});
 }
@@ -2288,7 +2306,11 @@ async function setTimeOfDay(time){
   if(!pondBackgroundFiles[time])return;
   timeButtons.forEach(button=>button.disabled=true);
   try{
-    if(!pondWaterTextures[time])pondWaterTextures[time]=await loadPondAsset(pondBackgroundFiles[time]);
+    if(!pondWaterTextures[time]){
+      const texture=await loadPondAsset(pondBackgroundFiles[time]);
+      await prepareGpuResources(texture);
+      pondWaterTextures[time]=texture;
+    }
     currentTimeOfDay=time;pondWaterTexture=pondWaterTextures[time];
     water.texture=pondWaterTexture;refractedWater.texture=pondWaterTexture;
     const sourceUrl=assetPath(pondBackgroundFiles[time]);
@@ -2425,6 +2447,14 @@ function layout(){
   pondFilterArea.height=Math.max(1,filterBottom-filterTop);
   [refractedWater,shorelineLayer,decorLayer,shadowLayer,fishLayer,floatingLayer,surfaceLayer]
     .forEach(layer=>{layer.filterArea=pondFilterArea;});
+  // These fixed bounds prevent recursive measurement of large effect and
+  // scenery subtrees whose visible extent is already known by layout.
+  screenBoundsArea.x=0;screenBoundsArea.y=0;
+  screenBoundsArea.width=app.screen.width;screenBoundsArea.height=app.screen.height;
+  [waterLayer,waterMotionLayer,waterTintLayer,lightingLayer,weatherLayer,rainLayer]
+    .forEach(layer=>{layer.boundsArea=screenBoundsArea;});
+  [refractedWaterLayer,shorelineLayer,decorLayer,shadowLayer,fishLayer,floatingLayer,surfaceLayer]
+    .forEach(layer=>{layer.boundsArea=pondFilterArea;});
   const sw=rippleMapCanvas.width,sh=rippleMapCanvas.height;
   for(let y=0;y<sh;y++)for(let x=0;x<sw;x++){
     const i=y*sw+x,edge=pondDistance(x/sw*app.screen.width,y/sh*app.screen.height);
@@ -2479,6 +2509,7 @@ function schedulePondResize(){
       mobileContentScale=useMobilePond?.5:1;
       pondBackgroundFiles=getPondBackgroundFiles();
       const nextTexture=await loadPondAsset(pondBackgroundFiles[currentTimeOfDay]);
+      await prepareGpuResources(nextTexture);
       pondWaterTextures[currentTimeOfDay]=nextTexture;
       pondWaterTexture=nextTexture;
       water.texture=nextTexture;
@@ -2495,6 +2526,73 @@ window.addEventListener('resize',schedulePondResize,{passive:true});
 window.visualViewport?.addEventListener('resize',schedulePondResize,{passive:true});
 document.addEventListener('visibilitychange',()=>document.hidden?app.ticker.stop():app.ticker.start());
 
+const diagnostics={
+  enabled:true,panel:null,lastFrameAt:performance.now(),lastPaintAt:0,slowFrames:0,
+  fps:60,frameMs:16.7,updateMs:0,waterMs:0,creatureMs:0
+};
+function ensureDiagnosticsPanel(){
+  if(diagnostics.panel)return diagnostics.panel;
+  const panel=document.createElement('aside');
+  panel.className='performance-diagnostics';
+  panel.setAttribute('aria-label','Pond performance diagnostics');
+  panel.innerHTML='<strong>POND DIAGNOSTICS</strong><small>Press D to close</small><pre></pre>';
+  document.body.appendChild(panel);
+  diagnostics.panel=panel;
+  return panel;
+}
+function toggleDiagnostics(){
+  diagnostics.enabled=!diagnostics.enabled;
+  const panel=ensureDiagnosticsPanel();
+  panel.classList.toggle('is-visible',diagnostics.enabled);
+  if(diagnostics.enabled){
+    diagnostics.lastFrameAt=performance.now();
+    diagnostics.lastPaintAt=0;
+    diagnostics.slowFrames=0;
+  }
+}
+window.addEventListener('keydown',event=>{
+  const target=event.target;
+  if(event.code!=='KeyD'||event.repeat||event.ctrlKey||event.metaKey||event.altKey||
+    target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target?.isContentEditable)return;
+  toggleDiagnostics();
+});
+function recordDiagnostics(frameStartedAt,waterMs,creatureMs){
+  if(!diagnostics.enabled)return;
+  const finishedAt=performance.now();
+  const interval=Math.max(.1,frameStartedAt-diagnostics.lastFrameAt);
+  const updateMs=finishedAt-frameStartedAt;
+  diagnostics.lastFrameAt=frameStartedAt;
+  if(interval>20)diagnostics.slowFrames++;
+  const blend=.12;
+  diagnostics.fps+=(1000/interval-diagnostics.fps)*blend;
+  diagnostics.frameMs+=(interval-diagnostics.frameMs)*blend;
+  diagnostics.updateMs+=(updateMs-diagnostics.updateMs)*blend;
+  diagnostics.waterMs+=(waterMs-diagnostics.waterMs)*blend;
+  diagnostics.creatureMs+=(creatureMs-diagnostics.creatureMs)*blend;
+  if(finishedAt-diagnostics.lastPaintAt<250)return;
+  diagnostics.lastPaintAt=finishedAt;
+  const poolCount=fishWakePool.length+rainImpactPool.length+pelletPool.length;
+  diagnostics.panel.querySelector('pre').textContent=[
+    `FPS          ${diagnostics.fps.toFixed(1)}`,
+    `FRAME        ${diagnostics.frameMs.toFixed(2)} ms`,
+    `JS UPDATE    ${diagnostics.updateMs.toFixed(2)} ms`,
+    `WATER CPU    ${diagnostics.waterMs.toFixed(2)} ms`,
+    `CREATURES    ${diagnostics.creatureMs.toFixed(2)} ms`,
+    `SLOW FRAMES  ${diagnostics.slowFrames}`,
+    '',
+    `KOI          ${fish.length}`,
+    `TREATS       ${animalTreats.length+food.length}`,
+    `WAKES        ${fishWakes.length}`,
+    `RAIN FX      ${rainDrops.length+rainImpacts.length}`,
+    `POOLED       ${poolCount}`,
+    '',
+    `RENDERER     ${isCanvasRenderer?'CANVAS':'WEBGL'}`,
+    `RESOLUTION   ${app.renderer.resolution.toFixed(2)}x`,
+    `VIEWPORT     ${app.screen.width} × ${app.screen.height}`
+  ].join('\n');
+}
+ensureDiagnosticsPanel().classList.add('is-visible');
+
 let firstRenderedFrame=false;
 app.ticker.add(ticker=>{
   if(!firstRenderedFrame){
@@ -2509,8 +2607,12 @@ app.ticker.add(ticker=>{
     console.info('[KOI STARTUP COMPLETE] Pond initialized successfully.');
     const scheduleIdle=window.requestIdleCallback||((callback)=>setTimeout(callback,900));
     scheduleIdle(()=>loadDeferredKoiTextures().catch(showStartupError),{timeout:2500});
+    scheduleIdle(()=>prepareGpuResources([
+      ...frogSwimTextures,...rabbitFrames,...pelletTextures,...animalFoodTextures
+    ]).catch(showStartupError),{timeout:1800});
   }
   const delta=Math.min(ticker.deltaTime,2),now=performance.now();
+  let diagnosticsWaterMs=0,diagnosticsCreatureMs=0;
   updateWeatherClouds(delta,now);
   updateRain(delta,now);
   updateLightning(delta,now);
@@ -2536,7 +2638,11 @@ app.ticker.add(ticker=>{
     if(p>=1){const splashX=s.x,splashY=s.y;finishCreatureReturn();addRipple(splashX,splashY,1,{intensity:.16});}
   }
   physicsFrame++;
-  if((waterEnergy>.002||physicsFrame<3)&&physicsFrame%2===0)updateRippleRefraction();
+  if((waterEnergy>.002||physicsFrame<3)&&physicsFrame%2===0){
+    const waterStartedAt=diagnostics.enabled?performance.now():0;
+    updateRippleRefraction();
+    if(diagnostics.enabled)diagnosticsWaterMs=performance.now()-waterStartedAt;
+  }
   const activeWater=waterMotionEnhanced&&(waterEnergy>.002||physicsFrame<3);
   // The unfiltered water sprite remains underneath, so the expensive second
   // full-screen pass is only needed while a disturbance is actually visible.
@@ -2588,6 +2694,7 @@ app.ticker.add(ticker=>{
       for(const key of ['homeY','fromY','toY'])f.linkedState[key]+=dy;
     }
   });
+  const creaturesStartedAt=diagnostics.enabled?performance.now():0;
   if(creatureVisibility.koi)fish.forEach(k=>{if(focusedCreature?.view!==k.view&&returningCreature?.view!==k.view)k.update(delta,now)});
   if(creatureVisibility.turtles)turtles.forEach((t,i)=>{
     if(focusedCreature?.view===t.view||returningCreature?.view===t.view)return;
@@ -2951,6 +3058,7 @@ app.ticker.add(ticker=>{
       }
     }
   });
+  if(diagnostics.enabled)diagnosticsCreatureMs=performance.now()-creaturesStartedAt;
   caustics.alpha=.62+Math.sin(now*.0005)*.18+(windActive?.12:0);
   caustics.x=Math.sin(now*.00017)*9+(windActive?Math.sin(now*.003)*4:0);caustics.y=Math.cos(now*.00013)*5;
   caustics.scale.set(1+Math.sin(now*.00011)*.006,1+Math.cos(now*.00009)*.009);
@@ -2985,4 +3093,5 @@ app.ticker.add(ticker=>{
     const r=ripples[i];r.age+=delta;drawRipple(r);
     if(r.age>=r.life){r.view.destroy();ripples.splice(i,1)}
   }
+  recordDiagnostics(now,diagnosticsWaterMs,diagnosticsCreatureMs);
 });

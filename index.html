@@ -227,17 +227,7 @@
       </section>
 
       <aside class="pond-card" id="pondControls" aria-label="Pond controls">
-        <div class="card-icon">◌</div>
-        <div>
-          <p class="card-label">KOI POPULATION</p>
-          <p class="card-text">Tap the water to feed them</p>
-        </div>
-        <div class="koi-stepper">
-          <button id="removeFish" class="step-button" aria-label="Remove one koi">−</button>
-          <output id="fishCount" aria-live="polite">10</output>
-          <button id="addFish" class="step-button" aria-label="Add one koi">+</button>
-        </div>
-        <input id="fishRange" class="fish-range" type="range" min="1" max="20" value="10" aria-label="Number of koi in the pond" />
+        <p class="panel-section-label">WATER</p>
         <button class="water-toggle" id="waterMotionButton" type="button" aria-pressed="true">
           <span>WATER MOTION</span><i aria-hidden="true"></i>
         </button>
@@ -247,15 +237,20 @@
         <button class="water-toggle" id="waveContrastButton" type="button" aria-pressed="false">
           <span>WAVE CONTRAST</span><i aria-hidden="true"></i>
         </button>
-        <button class="water-toggle" id="cloudyButton" type="button" aria-pressed="false" title="Cloud cover follows Tai Seng weather">
-          <span>CLOUDY</span><i aria-hidden="true"></i>
-        </button>
-        <button class="water-toggle" id="rainButton" type="button" aria-pressed="false" title="Weather for Tai Seng, Singapore">
-          <span>RAIN</span><i aria-hidden="true"></i>
-        </button>
-        <button class="water-toggle" id="lightningButton" type="button" aria-pressed="false" title="Lightning follows Tai Seng thunderstorm weather">
-          <span>LIGHTNING</span><i aria-hidden="true"></i>
-        </button>
+        <div class="icon-control-section weather-controls" role="group" aria-label="Pond weather">
+          <span class="panel-section-label">WEATHER</span>
+          <div>
+            <button id="cloudyButton" type="button" aria-pressed="false" aria-label="Enable cloudy atmosphere" title="Cloud cover follows Tai Seng weather">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 18h10.7a3.8 3.8 0 0 0 .4-7.6A5.7 5.7 0 0 0 6.8 9.1 4.5 4.5 0 0 0 6.5 18Z"/></svg>
+            </button>
+            <button id="rainButton" type="button" aria-pressed="false" aria-label="Enable rain" title="Weather for Tai Seng, Singapore">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 14.8h10.7a3.8 3.8 0 0 0 .4-7.6A5.7 5.7 0 0 0 6.8 5.9a4.5 4.5 0 0 0-.3 8.9Z"/><path d="m8 18-1 2m5-2-1 2m5-2-1 2"/></svg>
+            </button>
+            <button id="lightningButton" type="button" aria-pressed="false" aria-label="Enable lightning" title="Lightning follows Tai Seng thunderstorm weather">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 13.5h10.7a3.8 3.8 0 0 0 .4-7.6A5.7 5.7 0 0 0 6.8 4.6a4.5 4.5 0 0 0-.3 8.9Z"/><path d="m13 14-3 5h3l-1 3 4-6h-3l1-2Z"/></svg>
+            </button>
+          </div>
+        </div>
         <div class="weather-status" aria-live="polite">
           <span>TAI SENG</span>
           <output id="taiSengWeather">CHECKING…</output>
@@ -272,10 +267,10 @@
         <fieldset class="time-selector" id="timeSelector" aria-label="Pond time of day">
           <legend>TIME OF DAY</legend>
           <div>
-            <button type="button" data-time="morning">MORNING</button>
-            <button type="button" data-time="afternoon">AFTERNOON</button>
-            <button type="button" data-time="evening" class="is-active" aria-pressed="true">EVENING</button>
-            <button type="button" data-time="night">NIGHT</button>
+            <button type="button" data-time="morning" aria-label="Morning" title="Morning"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M7 15a5 5 0 0 1 10 0M12 4v3M5.6 7.6l2.1 2.1m10.7-2.1-2.1 2.1"/></svg></button>
+            <button type="button" data-time="afternoon" aria-label="Afternoon" title="Afternoon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9 7 7m10 10 2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg></button>
+            <button type="button" data-time="evening" class="is-active" aria-pressed="true" aria-label="Evening" title="Evening"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17h18M7 14a5 5 0 0 1 10 0M5 20h14"/></svg></button>
+            <button type="button" data-time="night" aria-label="Night" title="Night"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 15.5A8 8 0 0 1 8.5 5a8 8 0 1 0 10.5 10.5Z"/><path d="M17 5h.01M20 9h.01"/></svg></button>
           </div>
         </fieldset>
       </aside>
@@ -288,6 +283,17 @@
           <button class="dialog-close" value="close" aria-label="Close creature selector">×</button>
         </div>
         <label class="creature-option"><span><strong>Koi</strong><small>Swimming fish and their shadows</small></span><input type="checkbox" data-creature="koi" checked /><i></i></label>
+        <div class="creature-population" aria-label="Koi population controls">
+          <div>
+            <span>KOI POPULATION</span>
+            <div class="koi-stepper">
+              <button id="removeFish" class="step-button" type="button" aria-label="Remove one koi">−</button>
+              <output id="fishCount" aria-live="polite">10</output>
+              <button id="addFish" class="step-button" type="button" aria-label="Add one koi">+</button>
+            </div>
+          </div>
+          <input id="fishRange" class="fish-range" type="range" min="1" max="20" value="10" aria-label="Number of koi in the pond" />
+        </div>
         <label class="creature-option"><span><strong>Turtles</strong><small>Adult and juvenile pond turtles</small></span><input type="checkbox" data-creature="turtles" checked /><i></i></label>
         <label class="creature-option"><span><strong>Frogs</strong><small>Resting and hopping pond frogs</small></span><input type="checkbox" data-creature="frogs" checked /><i></i></label>
         <label class="creature-option"><span><strong>Dragonflies</strong><small>Hovering visitors above the water</small></span><input type="checkbox" data-creature="dragonflies" checked /><i></i></label>
