@@ -15,7 +15,21 @@ export default defineConfig(({mode})=>{
       }
     },
     build:{
-      outDir:pngFallback?'dist-png':'dist'
+      outDir:pngFallback?'dist-png':'dist',
+      rollupOptions:{
+        output:{
+          manualChunks(id){
+            const normalizedId=id.replaceAll('\\','/');
+            if(
+              normalizedId.includes('/node_modules/')
+              && !normalizedId.includes('/WebGPURenderer')
+              && !normalizedId.includes('/BitmapFont')
+            ){
+              return 'pixi-vendor';
+            }
+          }
+        }
+      }
     }
   };
 });
