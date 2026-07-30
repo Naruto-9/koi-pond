@@ -2724,7 +2724,7 @@ function recordDiagnostics(frameStartedAt,waterMs,creatureMs){
   const rendererLines=[
     `RENDERER     ${isCanvasRenderer?'CANVAS':'WEBGL'}`,
     `RESOLUTION   ${app.renderer.resolution.toFixed(2)}x`,
-    `VIEWPORT     ${app.screen.width} × ${app.screen.height}`
+    `VIEWPORT     ${Math.round(app.screen.width)} × ${Math.round(app.screen.height)}`
   ];
   diagnostics.panel.querySelector('[data-diagnostic="timing"]').textContent=timingLines.join('\n');
   diagnostics.panel.querySelector('[data-diagnostic="scene"]').textContent=sceneLines.join('\n');
