@@ -5,6 +5,12 @@ import {
 } from 'pixi.js';
 import 'pixi.js/browser';
 import 'pixi.js/prepare';
+import {
+  CREATURE_SPEED_LEVELS,
+  DEFAULT_CREATURE_SPEED_LEVEL,
+  canFrogHopToPad,
+  frogSwimScale
+} from './pond-behavior.js';
 import koiInSunlightUrl from './assets/Koi_in_Sunlight.mp3';
 import weightOfAmberUrl from './assets/The_Weight_of_Amber.mp3';
 import beneathTheGlassUrl from './assets/Beneath_the_Glass.mp3';
@@ -12,6 +18,18 @@ import whereSilentColorsDrownUrl from './assets/Where_Silent_Colors_Drown.mp3';
 import weightOfAmberArtworkUrl from './assets/The_Weight_of_Amber-artwork.png';
 import beneathTheGlassArtworkUrl from './assets/Beneath_the_Glass-artwork.png';
 import whereSilentColorsDrownArtworkUrl from './assets/Where_Silent_Colors_Drown-artwork.png';
+
+const POND_PREFERENCES_KEY='koi-garden-preferences-v1';
+function loadPondPreferences(){
+  try{return JSON.parse(localStorage.getItem(POND_PREFERENCES_KEY)||'{}')||{}}
+  catch{return {}}
+}
+const pondPreferences=loadPondPreferences();
+function savePondPreferences(patch){
+  Object.assign(pondPreferences,patch);
+  try{localStorage.setItem(POND_PREFERENCES_KEY,JSON.stringify(pondPreferences))}
+  catch{}
+}
 
 const startupStartedAt=performance.now();
 let startupStep=0;
@@ -287,7 +305,10 @@ const palettes = [
 const fish = [], food = [], animalTreats=[], ripples = [], fishWakes=[], refractionRipples=[];
 const fishWakePool=[],pelletPool=[];
 let selectedFood='';
-let lastWakeAt=0,nextWindAt=performance.now()+7000+Math.random()*7000,windUntil=0,lastWindRipple=0,waterMotionEnhanced=true,greenWaterEnabled=false,waveContrastEnabled=false;
+let lastWakeAt=0,nextWindAt=performance.now()+7000+Math.random()*7000,windUntil=0,lastWindRipple=0;
+let waterMotionEnhanced=pondPreferences.waterMotion??true;
+let greenWaterEnabled=pondPreferences.jadeMesh??false;
+let waveContrastEnabled=pondPreferences.waveContrast??false;
 const rainShade=new Graphics();
 rainShade.blendMode='multiply';rainShade.visible=false;weatherLayer.addChild(rainShade);
 const cloudLayer=new Container();
@@ -597,10 +618,13 @@ function updateRain(delta,now){
   }
   updateRainImpacts(delta);
 }
-const creatureVisibility={koi:true,turtles:true,frogs:true,dragonflies:true,hummingbirds:true,rabbits:true,plants:true};
+const creatureVisibility={
+  koi:true,turtles:true,frogs:true,dragonflies:true,hummingbirds:true,rabbits:true,plants:true,
+  ...(pondPreferences.creatures||{})
+};
 let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
-let audioOn=true,userVolume=.78;
+let audioOn=true,userVolume=Number.isFinite(pondPreferences.volume)?pondPreferences.volume:.78;
 const musicTracks=[
   {title:'The Weight of Amber',url:weightOfAmberUrl,artwork:weightOfAmberArtworkUrl,instrumental:false},
   {title:'Beneath the Glass',url:beneathTheGlassUrl,artwork:beneathTheGlassArtworkUrl,instrumental:false},
@@ -739,10 +763,15 @@ function timeOfDayFromDate(date=new Date()){
   if(hour>=17&&hour<20)return 'evening';
   return 'night';
 }
-const initialTimeOfDay=document.documentElement.dataset.time||timeOfDayFromDate();
+const initialTimeOfDay=['morning','afternoon','evening','night'].includes(pondPreferences.timeOfDay)
+  ?pondPreferences.timeOfDay
+  :(document.documentElement.dataset.time||timeOfDayFromDate());
 let mobileContentScale=useMobilePond?.5:1;
 const CREATURE_SPEED_REFERENCE_WIDTH=1920;
-let creatureSpeedMultiplier=.4;
+let creatureSpeedLevel=Number.isInteger(pondPreferences.creatureSpeedLevel)
+  ?Math.max(0,Math.min(CREATURE_SPEED_LEVELS.length-1,pondPreferences.creatureSpeedLevel))
+  :DEFAULT_CREATURE_SPEED_LEVEL;
+let creatureSpeedMultiplier=CREATURE_SPEED_LEVELS[creatureSpeedLevel].value;
 function creatureTravelScale(){
   // Preserve the perceived traversal time of the current desktop design.
   // A 390px-wide phone therefore travels at roughly 20% of desktop pixels
@@ -821,7 +850,7 @@ async function loadDeferredFrogFrames(){
   );
   await prepareGpuResources(textures);
   frogSwimTextures.splice(0,frogSwimTextures.length,...textures);
-  const swimScale=96/textures[0].height;
+  const swimScale=frogSwimScale(textures[0].height);
   frogs.forEach(state=>{
     state.swimScale=swimScale;
     state.swimFrames.forEach((sprite,index)=>{
@@ -912,7 +941,7 @@ function makeFrog(){
   // streamlined swim frames. A smaller visual height prevents the frog from
   // appearing to grow the instant it pulls itself onto a lily pad.
   restPose.scale.set(57/frogTexture.height);
-  const swimScale=96/frogSwimTextures[0].height;
+  const swimScale=frogSwimScale(frogSwimTextures[0].height);
   const frameOffsets=[0,0,0,0,0,0,0,0];
   const swimFrames=frogSwimTextures.map((texture,index)=>{
     const frame=new Sprite(texture);frame.anchor.set(.5);frame.scale.set(swimScale);
@@ -1951,38 +1980,58 @@ document.querySelector('#waterMotionButton').addEventListener('click',e=>{
   setDisplacementScale(radialRefraction,waterMotionEnhanced?58:0,waterMotionEnhanced?48:0);
   waterShadeSprite.visible=waterMotionEnhanced;
   if(!waterMotionEnhanced)clearWaterMotion();
+  savePondPreferences({waterMotion:waterMotionEnhanced});
 });
 document.querySelector('#waterColorButton').addEventListener('click',e=>{
   greenWaterEnabled=!greenWaterEnabled;e.currentTarget.setAttribute('aria-pressed',String(greenWaterEnabled));
   e.currentTarget.setAttribute('aria-label',`${greenWaterEnabled?'Disable':'Enable'} jade pond mesh`);
   redrawWaterTint();
+  savePondPreferences({jadeMesh:greenWaterEnabled});
 });
 document.querySelector('#waveContrastButton').addEventListener('click',e=>{
   waveContrastEnabled=!waveContrastEnabled;e.currentTarget.setAttribute('aria-pressed',waveContrastEnabled);
   waterShadeSprite.alpha=waveContrastEnabled?.68:.46;
+  savePondPreferences({waveContrast:waveContrastEnabled});
 });
 document.querySelector('#cloudyButton').addEventListener('click',()=>{
   setCloudyEnabled(!cloudyEnabled,{manual:true});
+  savePondPreferences({cloudy:cloudyEnabled});
 });
 document.querySelector('#rainButton').addEventListener('click',()=>{
   setRainEnabled(!rainEnabled,{manual:true});
+  savePondPreferences({rain:rainEnabled});
 });
 document.querySelector('#lightningButton').addEventListener('click',()=>{
   setLightningEnabled(!lightningEnabled,{manual:true});
+  savePondPreferences({lightning:lightningEnabled});
 });
-const creatureSpeedLevels=[
-  {label:'SLOWER',value:.4},
-  {label:'SLOW',value:.6},
-  {label:'NORMAL',value:1},
-  {label:'FAST',value:1.5}
-];
-let creatureSpeedLevel=0;
-document.querySelector('#creatureSpeedButton')?.addEventListener('click',event=>{
-  creatureSpeedLevel=(creatureSpeedLevel+1)%creatureSpeedLevels.length;
-  const level=creatureSpeedLevels[creatureSpeedLevel];
+document.querySelector('#waterMotionButton').setAttribute('aria-pressed',String(waterMotionEnhanced));
+document.querySelector('#waterColorButton').setAttribute('aria-pressed',String(greenWaterEnabled));
+document.querySelector('#waveContrastButton').setAttribute('aria-pressed',String(waveContrastEnabled));
+setDisplacementScale(fishRefraction,waterMotionEnhanced?5.8:0,waterMotionEnhanced?4.1:0);
+setDisplacementScale(animalRefraction,waterMotionEnhanced?3.4:0,waterMotionEnhanced?2.5:0);
+setDisplacementScale(radialRefraction,waterMotionEnhanced?58:0,waterMotionEnhanced?48:0);
+waterShadeSprite.visible=waterMotionEnhanced;
+waterShadeSprite.alpha=waveContrastEnabled?.68:.46;
+redrawWaterTint();
+if(typeof pondPreferences.cloudy==='boolean')setCloudyEnabled(pondPreferences.cloudy,{manual:true});
+if(typeof pondPreferences.rain==='boolean')setRainEnabled(pondPreferences.rain,{manual:true});
+if(typeof pondPreferences.lightning==='boolean')setLightningEnabled(pondPreferences.lightning,{manual:true});
+const creatureSpeedButton=document.querySelector('#creatureSpeedButton');
+function reflectCreatureSpeed(){
+  const level=CREATURE_SPEED_LEVELS[creatureSpeedLevel];
+  creatureSpeedMultiplier=level.value;
+  creatureSpeedButton?.querySelector('strong')?.replaceChildren(level.label);
+  creatureSpeedButton?.setAttribute('aria-label',`Creature movement speed: ${level.label.toLowerCase()}`);
+}
+reflectCreatureSpeed();
+creatureSpeedButton?.addEventListener('click',event=>{
+  creatureSpeedLevel=(creatureSpeedLevel+1)%CREATURE_SPEED_LEVELS.length;
+  const level=CREATURE_SPEED_LEVELS[creatureSpeedLevel];
   creatureSpeedMultiplier=level.value;
   event.currentTarget.querySelector('strong').textContent=level.label;
   event.currentTarget.setAttribute('aria-label',`Creature movement speed: ${level.label.toLowerCase()}`);
+  savePondPreferences({creatureSpeedLevel});
 });
 function weatherCodeLabel(code){
   if(code===0)return 'Clear';
@@ -2057,9 +2106,14 @@ setTimeout(syncTaiSengRain,500);
 setInterval(syncTaiSengRain,15*60*1000);
 const creatureDialog=document.querySelector('#creatureDialog');
 document.querySelector('#creatureButton').addEventListener('click',()=>creatureDialog.showModal());
-creatureDialog.querySelectorAll('[data-creature]').forEach(input=>input.addEventListener('change',()=>{
-  creatureVisibility[input.dataset.creature]=input.checked;applyCreatureVisibility();
-}));
+creatureDialog.querySelectorAll('[data-creature]').forEach(input=>{
+  input.checked=creatureVisibility[input.dataset.creature]!==false;
+  input.addEventListener('change',()=>{
+    creatureVisibility[input.dataset.creature]=input.checked;applyCreatureVisibility();
+    savePondPreferences({creatures:{...creatureVisibility}});
+  });
+});
+applyCreatureVisibility();
 creatureDialog.addEventListener('click',e=>{if(e.target===creatureDialog)creatureDialog.close();});
 document.querySelector('#creatureInfoClose').addEventListener('click',clearCreatureFocus);
 window.addEventListener('pointerdown',event=>{
@@ -2075,6 +2129,7 @@ const musicPanelButton=document.querySelector('#musicPanelButton');
 const soundControl=document.querySelector('.sound-control');
 const panelPlaybackButton=document.querySelector('#panelPlaybackButton');
 const volumeSlider=document.querySelector('#volumeSlider');
+volumeSlider.value=String(userVolume);
 const currentTrackName=document.querySelector('#currentTrackName');
 const trackArtwork=document.querySelector('#trackArtwork');
 const trackList=document.querySelector('#trackList');
@@ -2285,6 +2340,7 @@ volumeSlider.addEventListener('input',()=>{
   enableMusicAnalysis().catch(()=>{});
   userVolume=Number(volumeSlider.value);
   gardenMusic.volume=userVolume;
+  savePondPreferences({volume:userVolume});
 });
 canvas.addEventListener('pointerdown',()=>{
   soundControl.classList.remove('is-open');
@@ -2353,7 +2409,10 @@ async function setTimeOfDay(time){
 timeSelector?.addEventListener('click',async event=>{
   const button=event.target.closest('[data-time]');
   if(!button||button.dataset.time===currentTimeOfDay)return;
-  try{await setTimeOfDay(button.dataset.time)}catch(error){showStartupError(error)}
+  try{
+    await setTimeOfDay(button.dataset.time);
+    savePondPreferences({timeOfDay:button.dataset.time});
+  }catch(error){showStartupError(error)}
 });
 setTimeOfDay(currentTimeOfDay).catch(showStartupError);
 // Follow the visitor's local clock while the pond remains open. A manual
@@ -2365,6 +2424,11 @@ setInterval(()=>{
   lastClockPeriod=clockPeriod;
   setTimeOfDay(clockPeriod).catch(showStartupError);
 },60_000);
+if(pondPreferences.character==='boy'||pondPreferences.character==='girl'){
+  watcherRoot.dataset.character=pondPreferences.character;
+  characterToggle.querySelector('strong').textContent=pondPreferences.character.toUpperCase();
+  characterToggle.setAttribute('aria-label',`Switch to ${pondPreferences.character==='boy'?'girl':'boy'} character`);
+}
 characterToggle?.addEventListener('click',()=>{
   const next=watcherRoot.dataset.character==='boy'?'girl':'boy';
   watcherRoot.dataset.character=next;
@@ -2376,6 +2440,7 @@ characterToggle?.addEventListener('click',()=>{
   );
   characterToggle.querySelector('strong').textContent=next.toUpperCase();
   characterToggle.setAttribute('aria-label',`Switch to ${next==='boy'?'girl':'boy'} character`);
+  savePondPreferences({character:next});
 });
 const watcherCycle=[
   {frame:0,hold:3400,fade:130,rest:true},
@@ -2550,7 +2615,7 @@ window.visualViewport?.addEventListener('resize',schedulePondResize,{passive:tru
 document.addEventListener('visibilitychange',()=>document.hidden?app.ticker.stop():app.ticker.start());
 
 const diagnostics={
-  enabled:true,panel:null,lastFrameAt:performance.now(),lastPaintAt:0,slowFrames:0,
+  enabled:pondPreferences.diagnosticsVisible??true,panel:null,lastFrameAt:performance.now(),lastPaintAt:0,slowFrames:0,
   fps:60,frameMs:16.7,updateMs:0,waterMs:0,creatureMs:0
 };
 function ensureDiagnosticsPanel(){
@@ -2565,6 +2630,7 @@ function ensureDiagnosticsPanel(){
 }
 function toggleDiagnostics(){
   diagnostics.enabled=!diagnostics.enabled;
+  savePondPreferences({diagnosticsVisible:diagnostics.enabled});
   const panel=ensureDiagnosticsPanel();
   panel.classList.toggle('is-visible',diagnostics.enabled);
   if(diagnostics.enabled){
@@ -2614,7 +2680,7 @@ function recordDiagnostics(frameStartedAt,waterMs,creatureMs){
     `VIEWPORT     ${app.screen.width} × ${app.screen.height}`
   ].join('\n');
 }
-ensureDiagnosticsPanel().classList.add('is-visible');
+ensureDiagnosticsPanel().classList.toggle('is-visible',diagnostics.enabled);
 
 let firstRenderedFrame=false;
 app.ticker.add(ticker=>{
@@ -2792,7 +2858,7 @@ app.ticker.add(ticker=>{
         const a=Math.atan2(f.targetPad.y-f.view.y,f.targetPad.x-f.view.x);f.heading=a;
         f.fromX=f.view.x;f.fromY=f.view.y;f.progress=0;
         f.view.rotation=a+Math.PI/2;
-        if(targetIsPad&&distanceToTarget<=190*mobileContentScale){
+        if(canFrogHopToPad(distanceToTarget,mobileContentScale,targetIsPad)){
           // Adjacent leaves are close enough for a clean pad-to-pad jump.
           // Keep the resting silhouette visible and never enter the water.
           f.toX=f.targetPad.x;f.toY=f.targetPad.y;f.mode='pad-hop';
