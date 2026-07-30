@@ -16,9 +16,13 @@ import koiInSunlightUrl from './assets/Koi_in_Sunlight.mp3';
 import weightOfAmberUrl from './assets/The_Weight_of_Amber.mp3';
 import beneathTheGlassUrl from './assets/Beneath_the_Glass.mp3';
 import whereSilentColorsDrownUrl from './assets/Where_Silent_Colors_Drown.mp3';
-import weightOfAmberArtworkUrl from './assets/The_Weight_of_Amber-artwork.png';
-import beneathTheGlassArtworkUrl from './assets/Beneath_the_Glass-artwork.png';
-import whereSilentColorsDrownArtworkUrl from './assets/Where_Silent_Colors_Drown-artwork.png';
+
+const pondAssetUrl=name=>{
+  const formattedName=name.replace(/\.(?:png|webp)$/i,`.${pondAssetFormat}`);
+  const url=bundledAssets[`./assets/${formattedName}`];
+  if(!url)throw new Error(`Asset is missing from the Vite bundle: ${name}`);
+  return url;
+};
 
 const POND_PREFERENCES_KEY='koi-garden-preferences-v1';
 function loadPondPreferences(){
@@ -627,9 +631,9 @@ let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
 let audioOn=true,userVolume=Number.isFinite(pondPreferences.volume)?pondPreferences.volume:.78;
 const musicTracks=[
-  {title:'The Weight of Amber',url:weightOfAmberUrl,artwork:weightOfAmberArtworkUrl,instrumental:false},
-  {title:'Beneath the Glass',url:beneathTheGlassUrl,artwork:beneathTheGlassArtworkUrl,instrumental:false},
-  {title:'Where Silent Colors Drown',url:whereSilentColorsDrownUrl,artwork:whereSilentColorsDrownArtworkUrl,instrumental:false},
+  {title:'The Weight of Amber',url:weightOfAmberUrl,artwork:pondAssetUrl('The_Weight_of_Amber-artwork.png'),instrumental:false},
+  {title:'Beneath the Glass',url:beneathTheGlassUrl,artwork:pondAssetUrl('Beneath_the_Glass-artwork.png'),instrumental:false},
+  {title:'Where Silent Colors Drown',url:whereSilentColorsDrownUrl,artwork:pondAssetUrl('Where_Silent_Colors_Drown-artwork.png'),instrumental:false},
   {title:'Koi in Sunlight',url:koiInSunlightUrl,instrumental:true}
 ];
 let currentTrackIndex=3,trackFilter='instrumental';
@@ -682,12 +686,7 @@ window.addEventListener('touchstart',earlyAudioUnlock,{capture:true,passive:true
 window.addEventListener('keydown',earlyAudioUnlock,{capture:true});
 const koiBreeds=['kohaku','sanke','showa','ogon','shiro-utsuri','hi-utsuri','ki-utsuri','bekko','asagi','shusui','tancho','goshiki','goromo','ochiba','chagoi','soragoi','platinum-ogon','kujaku','matsuba','hariwake'];
 startupLog('Vite asset manifest ready',{entries:Object.keys(bundledAssets).length,format:pondAssetFormat});
-const assetPath=name=>{
-  const formattedName=name.replace(/\.(?:png|webp)$/i,`.${pondAssetFormat}`);
-  const url=bundledAssets[`./assets/${formattedName}`];
-  if(!url)throw new Error(`Asset is missing from the Vite bundle: ${name}`);
-  return url;
-};
+const assetPath=pondAssetUrl;
 const rootStyle=document.documentElement.style;
 [
   ['--pond-evening-art','pond-water.png'],
