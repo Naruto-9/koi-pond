@@ -104,7 +104,7 @@ window.addEventListener('unhandledrejection',event=>showStartupError(event.reaso
 
 let canvas = document.querySelector('#pond');
 let app = new Application();
-const useMobilePond=matchMedia('(max-width:700px) and (orientation:portrait)').matches;
+let useMobilePond=matchMedia('(max-width:700px) and (orientation:portrait)').matches;
 startupLog('Canvas located',{found:Boolean(canvas),size:[innerWidth,innerHeight]});
 const rendererOptions={
   canvas,
@@ -267,7 +267,8 @@ const palettes = [
   ['#d98b47', '#f5e6c6', '#8d2f27'], ['#f1dfbd', '#ac392c', '#26322f'],
   ['#ded0aa', '#c25731', '#f4ead4']
 ];
-const fish = [], food = [], ripples = [], fishWakes=[], refractionRipples=[];
+const fish = [], food = [], animalTreats=[], ripples = [], fishWakes=[], refractionRipples=[];
+let selectedFood='';
 let lastWakeAt=0,nextWindAt=performance.now()+7000+Math.random()*7000,windUntil=0,lastWindRipple=0,waterMotionEnhanced=true,greenWaterEnabled=false,waveContrastEnabled=false;
 const rainShade=new Graphics();
 rainShade.blendMode='multiply';rainShade.visible=false;weatherLayer.addChild(rainShade);
@@ -279,6 +280,8 @@ lightningFlash.blendMode='screen';lightningFlash.visible=false;weatherLayer.addC
 if(!isCanvasRenderer)lightningFlash.filters=[new BlurFilter({strength:52,quality:3})];
 const lightningBolt=new Graphics();
 lightningBolt.visible=false;weatherLayer.addChild(lightningBolt);
+const placementGuide=new Graphics();
+focusLayer.addChild(placementGuide);
 const rainDrops=[],rainImpacts=[];
 const weatherClouds=[];
 let cloudyEnabled=false,cloudyManualOverride=false;
@@ -631,6 +634,7 @@ const bundledAssets=import.meta.glob([
   './assets/pebble-[1-6].png',
   './assets/pellet-[1-9].png',
   './assets/pellet-1[0-2].png',
+  './assets/food-*.png',
   './assets/dragonfly.png',
   './assets/hummingbird.png',
   './assets/rabbit-sheet-clean.png',
@@ -679,15 +683,18 @@ function makePelletTexture(variant=0){
   return Texture.from(c);
 }
 startupLog('Loading critical pond textures in parallel');
-const criticalAssetTotal=48;
+const criticalAssetTotal=51;
 let criticalAssetsLoaded=0,criticalAssetsLoading=true;
-const pondBackgroundPrefix=useMobilePond?'pond-water-mobile':'pond-water';
-const pondBackgroundFiles={
-  morning:`${pondBackgroundPrefix}-morning.png`,
-  afternoon:`${pondBackgroundPrefix}-afternoon.png`,
-  evening:`${pondBackgroundPrefix}.png`,
-  night:`${pondBackgroundPrefix}-night.png`
-};
+function getPondBackgroundFiles(mobile=useMobilePond){
+  const prefix=mobile?'pond-water-mobile':'pond-water';
+  return {
+    morning:`${prefix}-morning.png`,
+    afternoon:`${prefix}-afternoon.png`,
+    evening:`${prefix}.png`,
+    night:`${prefix}-night.png`
+  };
+}
+let pondBackgroundFiles=getPondBackgroundFiles();
 function timeOfDayFromDate(date=new Date()){
   const hour=date.getHours();
   if(hour>=5&&hour<12)return 'morning';
@@ -696,7 +703,7 @@ function timeOfDayFromDate(date=new Date()){
   return 'night';
 }
 const initialTimeOfDay=document.documentElement.dataset.time||timeOfDayFromDate();
-const mobileContentScale=useMobilePond?.5:1;
+let mobileContentScale=useMobilePond?.5:1;
 const CREATURE_SPEED_REFERENCE_WIDTH=1920;
 let creatureSpeedMultiplier=1;
 function creatureTravelScale(){
@@ -718,7 +725,8 @@ const [
   hummingbirdTexture,
   rabbitSheetTexture,
   bankPlantTextures,
-  pelletTextures
+  pelletTextures,
+  animalFoodTextures
 ]=await Promise.all([
   Promise.all(koiBreeds.slice(0,10).map(name=>loadPondAsset(`koi-${name}-cropped.png`))),
   loadPondAsset('frog-cropped.png'),
@@ -732,7 +740,12 @@ const [
   loadPondAsset('hummingbird.png'),
   loadPondAsset('rabbit-sheet-clean.png'),
   Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset)),
-  Promise.all(Array.from({length:12},(_,i)=>loadPondAsset(`pellet-${i+1}.png`)))
+  Promise.all(Array.from({length:12},(_,i)=>loadPondAsset(`pellet-${i+1}.png`))),
+  Promise.all([
+    loadPondAsset('food-turtle-lettuce.png'),
+    loadPondAsset('food-frog-cricket.png'),
+    loadPondAsset('food-rabbit-carrot.png')
+  ])
 ]);
 criticalAssetsLoading=false;
 const pondWaterTextures={[initialTimeOfDay]:initialPondWaterTexture};
@@ -973,6 +986,7 @@ function clearWaterMotion(){
 function buildPondDecor(){
   if(returningCreature)finishCreatureReturn();
   if(focusedCreature&&focusedCreature.kind!=='koi')clearCreatureFocus(false);
+  animalTreats.splice(0).forEach(treat=>treat.view?.destroy());
   turtles.length=0;frogs.length=0;floaters.length=0;dragonflies.length=0;hummingbirds.length=0;rabbits.length=0;
   shorelineLayer.removeChildren().forEach(child=>child.destroy());
   bankPlantLayer.removeChildren().forEach(child=>child.destroy());
@@ -1055,7 +1069,8 @@ function buildPondDecor(){
     const mesh=isCanvasRenderer?new Sprite(turtleTexture):new MeshPlane({texture:turtleTexture,verticesX:7,verticesY:9});const scale=turtleSize/turtleTexture.width;
     mesh.scale.set(scale);mesh.position.set(-turtleSize/2,-turtleTexture.height*scale/2);turtle.addChild(mesh);decorLayer.addChild(turtle);
     const buffer=isCanvasRenderer?null:mesh.geometry.getAttribute('aPosition').buffer;
-    turtles.push({view:turtle,mesh,buffer,rest:buffer?new Float32Array(buffer.data):null,heading:turtle.rotation-Math.PI/2,speed:i ? .055 : .038,phase:i*2.8+Math.random(),turnSeed:Math.random()*9,strokeRate:i ? .0054 : .0038});
+    const turtleHeight=turtleTexture.height*scale;
+    turtles.push({view:turtle,mesh,buffer,rest:buffer?new Float32Array(buffer.data):null,mouthOffset:turtleHeight*.49,cruiseSpeed:i ? .055 : .038,heading:turtle.rotation-Math.PI/2,speed:i ? .055 : .038,phase:i*2.8+Math.random(),turnSeed:Math.random()*9,strokeRate:i ? .0054 : .0038});
   });
 
   const addInspectable=(view,kind,name,type,text)=>{view.eventMode='static';view.cursor='pointer';view.on('pointertap',()=>focusCreature({kind,view,name,type,text}));};
@@ -1077,23 +1092,31 @@ function buildPondDecor(){
   });
   const rabbit=new Sprite(rabbitFrames[0]);rabbit.anchor.set(.5,.82);
   const rabbitScale=(useMobilePond?.30:.24)*mobileContentScale;
-  // Keep every waypoint on one continuous lower-right bank corridor. Previously,
-  // independently chosen shoreline points allowed the straight hop chord to
-  // cut across the water even though both endpoints were on land.
+  // The rabbit can explore the full planted lower-right bank. The inner edge
+  // follows the curved shoreline while the viewport edges close the land area.
   const rabbitClearance=useMobilePond?34:78;
-  const bankY=Math.min(h-18*mobileContentScale,pondArea.cy+pondArea.ry+rabbitClearance*mobileContentScale);
-  const minBankX=Math.max(w*.68,pondArea.cx+pondArea.rx*.34);
-  const maxBankX=Math.min(w-30*mobileContentScale,pondArea.cx+pondArea.rx*1.04);
-  const rabbitWaypoints=[.08,.36,.64,.92].map(t=>{
-    const point={x:minBankX+(maxBankX-minBankX)*t,y:bankY};
-    return constrainOutsidePond(point.x,point.y,rabbitClearance*mobileContentScale);
-  });
-  rabbit.position.set(rabbitWaypoints[3].x,rabbitWaypoints[3].y);
+  const rabbitAreaNormalized=useMobilePond
+    ?[[.02,.78],[.12,.81],[.20,.87],[.34,.89],[.49,.84],[.63,.76],[.76,.67],[.85,.57],[.89,.43],[.93,.36],[1.04,.33],[1.06,1.06],[-.02,1.06]]
+    :[[.01,.762],[.085,.777],[.10,.817],[.19,.872],[.28,.892],[.36,.877],[.47,.822],[.58,.752],[.69,.682],[.77,.622],[.833,.552],[.838,.412],[.858,.387],[1.04,.35],[1.06,1.06],[-.02,1.06]];
+  const rabbitAreaControlPoints=rabbitAreaNormalized.flatMap(([x,y])=>[x*w,y*h]);
+  const rabbitMovementArea=smoothClosedPoints(rabbitAreaControlPoints,12);
+  const rabbitWaypointNormalized=useMobilePond
+    ?[[.14,.91],[.31,.95],[.49,.91],[.66,.84],[.80,.74],[.94,.48],[.95,.73],[.83,.91],[.59,.96]]
+    :[[.16,.92],[.32,.95],[.49,.92],[.62,.86],[.74,.78],[.85,.67],[.95,.46],[.96,.69],[.89,.87],[.70,.94],[.51,.96]];
+  const rabbitWaypoints=rabbitWaypointNormalized.map(([x,y])=>
+    constrainOutsidePond(x*w,y*h,rabbitClearance*mobileContentScale)
+  );
+  rabbit.position.set(rabbitWaypoints[7].x,rabbitWaypoints[7].y);
   rabbit.scale.set(rabbitScale);rabbit.alpha=.92;bankPlantLayer.addChild(rabbit);
   addInspectable(rabbit,'rabbits','Garden Rabbit','GARDEN VISITOR','A rabbit moves in short, powerful bounds separated by long attentive pauses. Its ears constantly sample the garden for sound while its nose and whiskers inspect sheltered pond-side plants.');
   rabbits.push({
-    view:rabbit,frames:rabbitFrames,waypoints:rabbitWaypoints,waypoint:0,
-    mode:'rest',timer:150+Math.random()*180,frame:0,frameClock:0,
+    view:rabbit,frames:rabbitFrames,waypoints:rabbitWaypoints,movementArea:rabbitMovementArea,waypoint:0,
+    // Frame mouth landmark: ~85.5% across and ~60.5% down. Relative to the
+    // sprite's (.5, .82) anchor this is +.355 width and -.215 height.
+    mouthOffsetX:rabbitFrames[0].width*rabbitScale*.355,
+    mouthOffsetY:rabbitFrames[0].height*rabbitScale*.185,
+    bodyClearance:rabbitClearance*mobileContentScale,
+    mode:'rest',timer:55+Math.random()*85,frame:0,frameClock:0,
     fromX:rabbit.x,fromY:rabbit.y,toX:rabbit.x,toY:rabbit.y,progress:0,
     duration:38,baseScale:rabbitScale,facing:1
   });
@@ -1212,26 +1235,14 @@ function redrawWaterTint(){
   drawSmoothPondShape(waterTint).fill({color:0x4eaa83,alpha:.28});
   waterTint.blendMode='soft-light';
 
-  // A staggered triangular mesh makes this mode visibly different from a
-  // flat colour grade. The shoreline stroke deliberately reveals the area
-  // affected by the optional overlay.
-  const cell=Math.max(42,Math.min(68,app.screen.width/18));
-  const rowHeight=cell*.72;
-  for(let row=-1,y=0;y<=app.screen.height+rowHeight;row++,y+=rowHeight){
-    const offset=(row&1)*cell*.5;
-    for(let x=-cell+offset;x<=app.screen.width+cell;x+=cell){
-      greenWaterMesh
-        .moveTo(x,y)
-        .lineTo(x+cell*.5,y+rowHeight)
-        .lineTo(x+cell,y)
-        .stroke({width:.65,color:0xa7dec0,alpha:.12});
-      if((row+Math.round(x/cell))%3===0){
-        greenWaterMesh
-          .poly([x,y,x+cell*.5,y+rowHeight,x+cell,y])
-          .fill({color:0x7bc59f,alpha:.018});
-      }
-    }
-  }
+  // An irregular triangulation reads as a fitted surface mesh rather than a
+  // decorative repeating pattern.
+  const cell=Math.max(44,Math.min(72,app.screen.width/17));
+  drawIrregularMesh(greenWaterMesh,{
+    minX:0,maxX:app.screen.width,minY:0,maxY:app.screen.height,cell,
+    contains:(x,y)=>pointInPolygon(x,y,pondOutline),
+    color:0xa7dec0,alpha:.15
+  });
   drawSmoothPondShape(greenWaterMesh).stroke({width:1.15,color:0xb8e3c8,alpha:.30});
   greenWaterMesh.blendMode='soft-light';
 }
@@ -1550,7 +1561,7 @@ function drawRipple(r){
     g.ellipse(-wobble,-.55,radius,radius*r.stretch).stroke({width:.6,color:crestColor,alpha:fade*.32*(greenWaterEnabled?1.2:1)});
   });
 }
-function feed(x,y){
+function feedFish(x,y){
   if(!insidePond(x,y,8))return;
   // Small textured pellets settle one by one within the disturbed patch of water.
   for(let i=0;i<Math.max(12,Math.min(20,fish.length));i++){
@@ -1563,10 +1574,257 @@ function feed(x,y){
     food.push({view:pellet,x:px,y:py,state:'settling',life:2.4+Math.random()*.7,age:0,delay:i*.8+Math.random()*3,bob:Math.random()*7,scale:pelletScale,claimedBy:null});
   }
   addRipple(x,y,1.2,{intensity:.12});
-  document.querySelector('#hint').style.opacity='0';
 }
 
-canvas.addEventListener('pointerup',e=>{if(performance.now()-lastCreatureClick>140)feed(e.clientX,e.clientY)});
+function createAnimalTreat(x,y,type,layer=surfaceLayer){
+  const textureByType={turtle:animalFoodTextures[0],frog:animalFoodTextures[1],rabbit:animalFoodTextures[2]};
+  const widthByType={turtle:28,frog:25,rabbit:30};
+  const view=new Sprite(textureByType[type]);
+  const width=widthByType[type]*mobileContentScale;
+  view.anchor.set(.5);view.position.set(x,y);
+  view.width=width;view.height=width*(view.texture.height/view.texture.width);
+  view.alpha=.94;view.rotation=type==='rabbit'?0:Math.random()*Math.PI;layer.addChild(view);
+  const treat={
+    type,x,y,view,life:1800,claimedBy:null,
+    baseScaleX:view.scale.x,baseScaleY:view.scale.y,
+    // The carrot artwork is upright; its leafy lower end is the bite point.
+    biteOffsetX:0,biteOffsetY:type==='rabbit'?view.height*.38:0
+  };
+  animalTreats.push(treat);
+  return treat;
+}
+function closestPointOnRabbitRoute(rabbit,x,y){
+  let closest=null;
+  const route=[...rabbit.waypoints].sort((a,b)=>a.x-b.x);
+  for(let i=0;i<route.length-1;i++){
+    const a=route[i],b=route[i+1],dx=b.x-a.x,dy=b.y-a.y;
+    const lengthSquared=dx*dx+dy*dy;
+    const t=lengthSquared?Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/lengthSquared)):0;
+    const point={x:a.x+dx*t,y:a.y+dy*t};
+    const distance=Math.hypot(x-point.x,y-point.y);
+    if(!closest||distance<closest.distance)closest={...point,distance};
+  }
+  return closest||route[0]||{x,y};
+}
+function pointInPolygon(x,y,points){
+  let inside=false;
+  for(let i=0,j=points.length-2;i<points.length;j=i,i+=2){
+    const xi=points[i],yi=points[i+1],xj=points[j],yj=points[j+1];
+    const intersects=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi);
+    if(intersects)inside=!inside;
+  }
+  return inside;
+}
+function rabbitBodyPositionContains(rabbit,x,y){
+  if(!rabbit||!pointInPolygon(x,y,rabbit.movementArea))return false;
+  const clearance=rabbit.bodyClearance||0;
+  const rx=pondArea.rx+clearance,ry=pondArea.ry+clearance;
+  return Math.hypot((x-pondArea.cx)/rx,(y-pondArea.cy)/ry)>=1;
+}
+function rabbitCarrotHeight(){
+  const texture=animalFoodTextures[2];
+  const width=30*mobileContentScale;
+  return width*(texture.height/texture.width);
+}
+function rabbitFoodApproachAt(rabbit,x,y,biteDistance){
+  const candidates=[1,-1].map(facing=>{
+    const biteX=x-facing*biteDistance;
+    return {
+      facing,
+      biteDistance,
+      x:biteX-facing*rabbit.mouthOffsetX,
+      y:y+rabbit.mouthOffsetY
+    };
+  }).filter(point=>rabbitBodyPositionContains(rabbit,point.x,point.y));
+  if(!candidates.length)return null;
+  return candidates.reduce((nearest,point)=>
+    !nearest||Math.hypot(point.x-rabbit.view.x,point.y-rabbit.view.y)<
+      Math.hypot(nearest.x-rabbit.view.x,nearest.y-rabbit.view.y)
+      ?point:nearest,null);
+}
+function rabbitFoodApproach(rabbit,treat){
+  return rabbitFoodApproachAt(rabbit,treat.x,treat.y,treat.view.height*.38);
+}
+function rabbitBankContains(rabbit,x,y){
+  if(!rabbitBodyPositionContains(rabbit,x,y))return false;
+  return !!rabbitFoodApproachAt(rabbit,x,y,rabbitCarrotHeight()*.38);
+}
+function smoothClosedPoints(points,steps=10){
+  const count=points.length/2,result=[];
+  const point=index=>{
+    const wrapped=(index+count)%count;
+    return {x:points[wrapped*2],y:points[wrapped*2+1]};
+  };
+  for(let i=0;i<count;i++){
+    const p0=point(i-1),p1=point(i),p2=point(i+1),p3=point(i+2);
+    for(let step=0;step<steps;step++){
+      const t=step/steps,t2=t*t,t3=t2*t;
+      result.push(
+        .5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+        .5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+      );
+    }
+  }
+  return result;
+}
+function drawIrregularMesh(graphics,{minX,maxX,minY,maxY,cell=58,contains,color=0xa7dec0,alpha=.2}){
+  const cols=Math.ceil((maxX-minX)/cell)+1,rows=Math.ceil((maxY-minY)/cell)+1;
+  const jitter=(row,col,axis)=>{
+    const value=Math.sin((row+1)*127.1+(col+1)*311.7+axis*74.7)*43758.5453;
+    return (value-Math.floor(value)-.5)*cell*.42;
+  };
+  const points=Array.from({length:rows},(_,row)=>Array.from({length:cols},(_,col)=>({
+    x:minX+col*cell+(col&&col<cols-1?jitter(row,col,0):0),
+    y:minY+row*cell+(row&&row<rows-1?jitter(row,col,1):0)
+  })));
+  const segment=(a,b)=>{
+    const mx=(a.x+b.x)*.5,my=(a.y+b.y)*.5;
+    if(!contains(mx,my))return;
+    graphics.moveTo(a.x,a.y).lineTo(b.x,b.y).stroke({width:.62,color,alpha});
+  };
+  for(let row=0;row<rows-1;row++)for(let col=0;col<cols-1;col++){
+    const a=points[row][col],b=points[row][col+1],c=points[row+1][col],d=points[row+1][col+1];
+    segment(a,b);segment(a,c);
+    if(row===rows-2)segment(c,d);
+    if(col===cols-2)segment(b,d);
+    if((row+col)&1)segment(a,d);else segment(b,c);
+  }
+}
+function drawPredicateBoundary(graphics,{minX,maxX,minY,maxY,step=10,contains,color=0xb8e3c8,alpha=.55}){
+  const pairs={
+    1:[[3,0]],2:[[0,1]],3:[[3,1]],4:[[1,2]],5:[[3,0],[1,2]],
+    6:[[0,2]],7:[[3,2]],8:[[2,3]],9:[[0,2]],10:[[0,1],[2,3]],
+    11:[[1,2]],12:[[3,1]],13:[[0,1]],14:[[3,0]]
+  };
+  for(let y=minY;y<maxY;y+=step)for(let x=minX;x<maxX;x+=step){
+    const x2=Math.min(maxX,x+step),y2=Math.min(maxY,y+step);
+    const state=(contains(x,y)?1:0)|(contains(x2,y)?2:0)|
+      (contains(x2,y2)?4:0)|(contains(x,y2)?8:0);
+    const edges=[
+      {x:(x+x2)/2,y},{x:x2,y:(y+y2)/2},
+      {x:(x+x2)/2,y:y2},{x,y:(y+y2)/2}
+    ];
+    (pairs[state]||[]).forEach(([a,b])=>
+      graphics.moveTo(edges[a].x,edges[a].y).lineTo(edges[b].x,edges[b].y)
+        .stroke({width:1.3,color,alpha})
+    );
+  }
+}
+let correctionTimer=0;
+let placementGuideTimer=0;
+function showPlacementGuide(type){
+  placementGuide.clear();
+  if(type==='rabbit'){
+    const rabbit=rabbits[0];if(!rabbit)return;
+    const bankContains=(x,y)=>rabbitBankContains(rabbit,x,y);
+    drawIrregularMesh(placementGuide,{
+      minX:0,maxX:app.screen.width,
+      minY:app.screen.height*.27,maxY:app.screen.height,
+      cell:Math.max(36,Math.min(56,app.screen.width/23)),
+      contains:bankContains,
+      color:0xa7dec0,alpha:.24
+    });
+    drawPredicateBoundary(placementGuide,{
+      minX:0,maxX:app.screen.width,
+      minY:app.screen.height*.27,maxY:app.screen.height,
+      step:8,contains:bankContains
+    });
+  }else{
+    const margin=type==='fish'?18:type==='turtle'?44:30;
+    const rx=Math.max(20,pondArea.rx-margin),ry=Math.max(20,pondArea.ry-margin);
+    placementGuide.ellipse(pondArea.cx,pondArea.cy,rx,ry).fill({color:0x4eaa83,alpha:.13});
+    drawIrregularMesh(placementGuide,{
+      minX:pondArea.cx-rx,maxX:pondArea.cx+rx,
+      minY:pondArea.cy-ry,maxY:pondArea.cy+ry,
+      cell:Math.max(40,Math.min(60,app.screen.width/19)),
+      contains:(x,y)=>((x-pondArea.cx)/rx)**2+((y-pondArea.cy)/ry)**2<.96,
+      color:0xa7dec0,alpha:.22
+    });
+    placementGuide.ellipse(pondArea.cx,pondArea.cy,rx,ry).stroke({width:1.2,color:0xb8e3c8,alpha:.52});
+  }
+  clearTimeout(placementGuideTimer);
+  placementGuideTimer=setTimeout(()=>placementGuide.clear(),2600);
+}
+function showPlacementCorrection(message,x,y,type){
+  let popup=document.querySelector('.placement-correction');
+  if(!popup){
+    popup=document.createElement('div');
+    popup.className='placement-correction';
+    popup.setAttribute('role','status');
+    popup.setAttribute('aria-live','polite');
+    document.body.appendChild(popup);
+  }
+  popup.textContent=message;
+  popup.style.left=`${Math.max(125,Math.min(innerWidth-125,x))}px`;
+  popup.style.top=`${Math.max(70,Math.min(innerHeight-20,y))}px`;
+  popup.classList.remove('is-visible');
+  requestAnimationFrame(()=>popup.classList.add('is-visible'));
+  clearTimeout(correctionTimer);
+  correctionTimer=setTimeout(()=>popup.classList.remove('is-visible'),2200);
+  showPlacementGuide(type);
+}
+function consumeAnimalTreat(treat,{ripple=true}={}){
+  if(!treat)return;
+  if(ripple)addRipple(treat.x,treat.y,.55,{intensity:.08});
+  treat.view?.destroy();
+  const index=animalTreats.indexOf(treat);
+  if(index>=0)animalTreats.splice(index,1);
+}
+function feedAnimal(x,y,type){
+  if(type==='rabbit'){
+    const rabbit=rabbits[0];
+    if(!rabbit||!creatureVisibility.rabbits)return;
+    if(!rabbitBankContains(rabbit,x,y)){
+      showPlacementCorrection('Place carrots inside the highlighted rabbit bank.',x,y,'rabbit');
+      return;
+    }
+    if(rabbit.foodTarget)consumeAnimalTreat(rabbit.foodTarget,{ripple:false});
+    // Carrots belong on the same continuous lower-bank route the rabbit can
+    // actually traverse, rather than at an arbitrary point outside the pond.
+    const treat=createAnimalTreat(x,y,'rabbit',bankPlantLayer);
+    treat.claimedBy=rabbit;rabbit.foodTarget=treat;rabbit.timer=0;
+    return;
+  }
+  if(!insidePond(x,y,type==='turtle'?44:30)){
+    showPlacementCorrection(type==='turtle'
+      ?'Place lettuce safely inside the open pond water.'
+      :'Place crickets inside the highlighted pond area.',x,y,type);
+    return;
+  }
+  if(type==='turtle'){
+    const turtle=turtles.filter(t=>creatureVisibility.turtles).reduce((nearest,t)=>
+      !nearest||Math.hypot(t.view.x-x,t.view.y-y)<Math.hypot(nearest.view.x-x,nearest.view.y-y)?t:nearest,null);
+    if(!turtle)return;
+    if(turtle.foodTarget)consumeAnimalTreat(turtle.foodTarget);
+    const treat=createAnimalTreat(x,y,'turtle');treat.claimedBy=turtle;turtle.foodTarget=treat;
+  }else if(type==='frog'){
+    const frog=frogs[0];if(!frog||!creatureVisibility.frogs)return;
+    if(frog.foodTarget)consumeAnimalTreat(frog.foodTarget);
+    const treat=createAnimalTreat(x,y,'frog');
+    treat.claimedBy=frog;frog.foodTarget=treat;frog.preferredPad=treat;frog.timer=0;
+  }
+  addRipple(x,y,1,{intensity:.1});
+}
+function touchPond(x,y){
+  if(!selectedFood){
+    if(!insidePond(x,y,8))return;
+    addRipple(x,y,1.2,{intensity:.22});
+  }else if(selectedFood==='fish'){
+    if(!insidePond(x,y,18)){
+      showPlacementCorrection('Drop koi pellets inside the highlighted pond area.',x,y,'fish');
+      return;
+    }
+    feedFish(x,y);
+  }else feedAnimal(x,y,selectedFood);
+}
+document.querySelectorAll('[data-food]').forEach(button=>button.addEventListener('click',event=>{
+  event.stopPropagation();
+  selectedFood=button.dataset.food;
+  document.querySelectorAll('[data-food]').forEach(option=>option.setAttribute('aria-checked',String(option===button)));
+}));
+canvas.addEventListener('pointerup',e=>{
+  if(performance.now()-lastCreatureClick>140)touchPond(e.clientX,e.clientY);
+});
 const controlsMenuButton=document.querySelector('#controlsMenuButton');
 const pondControls=document.querySelector('#pondControls');
 function setControlsOpen(open){
@@ -2143,10 +2401,21 @@ layout();
 let pondResizeFrame=0;
 function schedulePondResize(){
   cancelAnimationFrame(pondResizeFrame);
-  pondResizeFrame=requestAnimationFrame(()=>{
+  pondResizeFrame=requestAnimationFrame(async()=>{
     pondResizeFrame=0;
     const width=Math.max(1,document.documentElement.clientWidth);
     const height=Math.max(1,document.documentElement.clientHeight);
+    const nextMobilePond=matchMedia('(max-width:700px) and (orientation:portrait)').matches;
+    if(nextMobilePond!==useMobilePond){
+      useMobilePond=nextMobilePond;
+      mobileContentScale=useMobilePond?.5:1;
+      pondBackgroundFiles=getPondBackgroundFiles();
+      const nextTexture=await loadPondAsset(pondBackgroundFiles[currentTimeOfDay]);
+      pondWaterTextures[currentTimeOfDay]=nextTexture;
+      pondWaterTexture=nextTexture;
+      water.texture=nextTexture;
+      refractedWater.texture=nextTexture;
+    }
     // Pixi's resizeTo plugin also responds to this event, but does so on its
     // own animation frame. Resize explicitly before layout to prevent one frame
     // of calculations against the previous viewport.
@@ -2254,13 +2523,28 @@ app.ticker.add(ticker=>{
   if(creatureVisibility.koi)fish.forEach(k=>{if(focusedCreature?.view!==k.view&&returningCreature?.view!==k.view)k.update(delta,now)});
   if(creatureVisibility.turtles)turtles.forEach((t,i)=>{
     if(focusedCreature?.view===t.view||returningCreature?.view===t.view)return;
-    t.heading+=Math.sin(now*.00023+t.turnSeed)*.00045*delta;
+    if(t.foodTarget){
+      const desired=Math.atan2(t.foodTarget.y-t.view.y,t.foodTarget.x-t.view.x);
+      t.heading+=angleDiff(desired,t.heading)*.045*delta;
+      const mouthX=t.view.x+Math.cos(t.heading)*t.mouthOffset;
+      const mouthY=t.view.y+Math.sin(t.heading)*t.mouthOffset;
+      const mouthDistance=Math.hypot(t.foodTarget.x-mouthX,t.foodTarget.y-mouthY);
+      const approachSpeed=mouthDistance<64*mobileContentScale
+        ?Math.max(.035,mouthDistance*.012)
+        :.82;
+      t.speed+=(approachSpeed-t.speed)*.22*delta;
+      if(mouthDistance<8*mobileContentScale){
+        consumeAnimalTreat(t.foodTarget);t.foodTarget=null;
+        t.speed=t.cruiseSpeed;
+      }
+    }else t.heading+=Math.sin(now*.00023+t.turnSeed)*.00045*delta;
     if(pondDistance(t.view.x,t.view.y,42)>.84){const home=Math.atan2(pondArea.cy-t.view.y,pondArea.cx-t.view.x);t.heading+=angleDiff(home,t.heading)*.018*delta;}
     const travelScale=creatureTravelScale();
     t.view.x+=Math.cos(t.heading)*t.speed*delta*travelScale;t.view.y+=Math.sin(t.heading)*t.speed*delta*travelScale;
     if(!insidePond(t.view.x,t.view.y,35)){const safe=constrainToPond(t.view.x,t.view.y,35);t.view.position.set(safe.x,safe.y);}
     t.view.rotation=t.heading+Math.PI/2+Math.sin(now*.0008+t.phase)*.025;
-    const paddle=Math.sin(now*t.strokeRate+t.phase);
+    const foodStrokeBoost=t.foodTarget?2.35:1;
+    const paddle=Math.sin(now*t.strokeRate*foodStrokeBoost+t.phase);
     if(t.buffer){
       const verts=t.buffer.data,tw=turtleTexture.width,th=turtleTexture.height;
       for(let n=0;n<verts.length;n+=2){
@@ -2302,7 +2586,8 @@ app.ticker.add(ticker=>{
           f.visitedPads.add(f.carrier);
           available=pads;
         }
-        f.targetPad=(available[Math.floor(Math.random()*available.length)]||{view:f.carrier}).view;
+        f.targetPad=f.preferredPad||(available[Math.floor(Math.random()*available.length)]||{view:f.carrier}).view;
+        f.preferredPad=null;
         const a=Math.atan2(f.targetPad.y-f.view.y,f.targetPad.x-f.view.x);f.heading=a;
         f.fromX=f.view.x;f.fromY=f.view.y;f.toX=f.view.x+Math.cos(a)*55*mobileContentScale;f.toY=f.view.y+Math.sin(a)*55*mobileContentScale;
         f.view.rotation=a+Math.PI/2;f.mode='dive';f.progress=0;
@@ -2335,7 +2620,17 @@ app.ticker.add(ticker=>{
       const speed=(.32+power*2.35+glide*.52)*5*creatureTravelScale();
       f.view.x+=Math.cos(f.heading)*speed*delta;f.view.y+=Math.sin(f.heading)*speed*delta;
       const distance=Math.hypot(tx-f.view.x,ty-f.view.y);
-      if(distance<105*mobileContentScale){
+      const chasingFood=f.foodTarget&&f.targetPad===f.foodTarget;
+      const frogMouthX=f.view.x+Math.cos(f.heading)*20*mobileContentScale;
+      const frogMouthY=f.view.y+Math.sin(f.heading)*20*mobileContentScale;
+      const mouthDistance=chasingFood?Math.hypot(f.foodTarget.x-frogMouthX,f.foodTarget.y-frogMouthY):Infinity;
+      if(chasingFood&&mouthDistance<15*mobileContentScale){
+        consumeAnimalTreat(f.foodTarget);f.foodTarget=null;
+        const pads=floaters.filter(p=>p.isPad);
+        const returnPad=pads.reduce((nearest,p)=>!nearest||Math.hypot(p.view.x-f.view.x,p.view.y-f.view.y)<Math.hypot(nearest.view.x-f.view.x,nearest.view.y-f.view.y)?p:nearest,null);
+        f.targetPad=returnPad?.view||f.carrier;
+        f.timer=100;
+      }else if(!chasingFood&&distance<105*mobileContentScale){
         // Begin outside the leaf footprint. This is the reverse of the
         // pad-to-water dive, so the frog can never emerge through the pad.
         f.mode='climb';f.progress=0;f.duration=24*Math.max(1,mobileContentScale/creatureTravelScale());f.fromX=f.view.x;f.fromY=f.view.y;f.carrier=f.targetPad;f.climbContact=false;
@@ -2380,6 +2675,11 @@ app.ticker.add(ticker=>{
         }
         disturbWater(f.view.x,f.view.y,.07,9,f.heading);
         addRipple(f.view.x,f.view.y,.48,{intensity:.075});
+        const frogMouthX=f.view.x+Math.cos(f.heading)*20*mobileContentScale;
+        const frogMouthY=f.view.y+Math.sin(f.heading)*20*mobileContentScale;
+        if(f.foodTarget&&Math.hypot(f.foodTarget.x-frogMouthX,f.foodTarget.y-frogMouthY)<24*mobileContentScale){
+          consumeAnimalTreat(f.foodTarget);f.foodTarget=null;
+        }
       }
     }
   });
@@ -2507,36 +2807,96 @@ app.ticker.add(ticker=>{
       const breath=Math.sin(now*.0017)*.006;
       r.view.scale.set(r.baseScale*r.facing,r.baseScale*(1-breath));
       if(r.timer<=0){
-        r.waypoint=(r.waypoint+1+Math.floor(Math.random()*(r.waypoints.length-1)))%r.waypoints.length;
-        const target=r.waypoints[r.waypoint];
-        r.fromX=r.view.x;r.fromY=r.view.y;r.toX=target.x;r.toY=target.y;
-        r.facing=r.toX>=r.fromX?1:-1;r.progress=0;r.mode='hop';
+        let target;
+        if(r.foodTarget)target={x:r.foodTarget.x,y:r.foodTarget.y};
+        else{
+          r.waypoint=(r.waypoint+1+Math.floor(Math.random()*(r.waypoints.length-1)))%r.waypoints.length;
+          target=r.waypoints[r.waypoint];
+        }
+        r.fromX=r.view.x;r.fromY=r.view.y;
+        r.facing=target.x>=r.fromX?1:-1;
+        if(r.foodTarget){
+          // Try both sides of the carrot. Narrow shoreline sections may leave
+          // room for the rabbit's body on only one side of its mouth target.
+          const foodApproach=rabbitFoodApproach(r,r.foodTarget);
+          if(foodApproach)r.facing=foodApproach.facing;
+          const biteDistance=foodApproach?.biteDistance||r.foodTarget.view.height*.38;
+          r.foodTarget.view.rotation=r.facing*Math.PI/2;
+          r.foodTarget.biteOffsetX=-r.facing*biteDistance;
+          r.foodTarget.biteOffsetY=0;
+          target={
+            x:r.foodTarget.x+r.foodTarget.biteOffsetX,
+            y:r.foodTarget.y
+          };
+          // Approach shoreline food from the bank. The mouth can reach toward
+          // the carrot, but the rabbit's body origin remains safely on land.
+          const approach=foodApproach||constrainOutsidePond(
+            target.x-r.facing*r.mouthOffsetX,target.y+r.mouthOffsetY,r.bodyClearance
+          );
+          r.toX=approach.x;r.toY=approach.y;
+        }else{
+          r.toX=target.x;r.toY=target.y;
+        }
+        r.progress=0;r.mode='hop';
         const distance=Math.hypot(r.toX-r.fromX,r.toY-r.fromY);
-        r.duration=Math.max(34,distance/(2.8*creatureTravelScale()));
+        if(!r.foodTarget&&distance<18*mobileContentScale){
+          const alternatives=r.waypoints.filter(point=>
+            Math.hypot(point.x-r.fromX,point.y-r.fromY)>70*mobileContentScale
+          );
+          const fallback=alternatives[Math.floor(Math.random()*alternatives.length)];
+          if(fallback){
+            r.toX=fallback.x;r.toY=fallback.y;
+            r.facing=r.toX>=r.fromX?1:-1;
+          }
+        }
+        const routeDistance=Math.hypot(r.toX-r.fromX,r.toY-r.fromY);
+        r.hopCount=Math.max(1,Math.ceil(routeDistance/(92*mobileContentScale)));
+        r.duration=Math.max(34,routeDistance/(2.8*creatureTravelScale()));
       }
-    }else{
+    }else if(r.mode==='hop'){
       r.progress+=delta/r.duration;
-      const p=Math.min(1,r.progress),arc=Math.sin(p*Math.PI);
+      const p=Math.min(1,r.progress);
+      const hopPhase=Math.min(.999999,p)*r.hopCount%1;
+      const arc=Math.sin(hopPhase*Math.PI);
       const ease=p*p*(3-2*p);
       r.view.x=r.fromX+(r.toX-r.fromX)*ease;
-      // On the lower bank the leap bows downward, away from the water,
-      // rather than visually cutting upward across the shoreline.
+      // Long routes are made from repeated short jumps, each returning to the
+      // ground before the next begins.
       r.view.y=r.fromY+(r.toY-r.fromY)*ease+arc*28*mobileContentScale;
-      const landSafe=constrainOutsidePond(r.view.x,r.view.y,28*mobileContentScale);
+      const landSafe=constrainOutsidePond(r.view.x,r.view.y,r.bodyClearance);
       r.view.position.set(landSafe.x,landSafe.y);
-      const frame=p<.14?3:p<.34?4:p<.64?5:p<.86?6:7;
+      const frame=hopPhase<.14?3:hopPhase<.34?4:hopPhase<.64?5:hopPhase<.86?6:7;
       if(frame!==r.frame){r.frame=frame;r.view.texture=r.frames[frame];}
       const stretch=Math.sin(p*Math.PI);
       r.view.scale.set(r.baseScale*r.facing*(1+stretch*.035),r.baseScale*(1-stretch*.045));
       if(p>=1){
-        r.mode='rest';r.timer=170+Math.random()*310;r.frameClock=0;r.frame=0;
+        r.mode='rest';r.timer=60+Math.random()*110;r.frameClock=0;r.frame=0;
         r.view.texture=r.frames[0];r.view.scale.set(r.baseScale*r.facing,r.baseScale);
+        const rabbitMouthX=r.view.x+r.facing*r.mouthOffsetX;
+        const rabbitMouthY=r.view.y-r.mouthOffsetY;
+        const biteX=r.foodTarget?.x+(r.foodTarget?.biteOffsetX||0);
+        const biteY=r.foodTarget?.y+(r.foodTarget?.biteOffsetY||0);
+        if(r.foodTarget&&Math.hypot(biteX-rabbitMouthX,biteY-rabbitMouthY)<18*mobileContentScale){
+          consumeAnimalTreat(r.foodTarget,{ripple:false});
+          r.foodTarget=null;r.timer=260;
+        }
       }
     }
   });
   caustics.alpha=.62+Math.sin(now*.0005)*.18+(windActive?.12:0);
   caustics.x=Math.sin(now*.00017)*9+(windActive?Math.sin(now*.003)*4:0);caustics.y=Math.cos(now*.00013)*5;
   caustics.scale.set(1+Math.sin(now*.00011)*.006,1+Math.cos(now*.00009)*.009);
+  for(let i=animalTreats.length-1;i>=0;i--){
+    const treat=animalTreats[i];treat.life-=delta;
+    if(treat.view){
+      treat.view.rotation+=.0018*delta;
+      treat.view.alpha=Math.min(.94,Math.max(0,treat.life/90));
+    }
+    if(treat.life<=0){
+      if(treat.claimedBy?.foodTarget===treat)treat.claimedBy.foodTarget=null;
+      treat.view?.destroy();animalTreats.splice(i,1);
+    }
+  }
   for(let i=food.length-1;i>=0;i--){
     const f=food[i];f.age+=delta;
     if(f.state==='settling'){

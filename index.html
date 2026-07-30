@@ -206,6 +206,16 @@
           </label>
         </div>
         </div>
+        <section class="food-panel" aria-label="Pond food selector">
+          <span class="food-panel__label">POND FOOD</span>
+          <div class="food-options" role="radiogroup" aria-label="Choose food">
+            <button type="button" data-food="" role="radio" aria-checked="true"><i class="food-ripple" aria-hidden="true"></i><span>RIPPLE</span></button>
+            <button type="button" data-food="fish" role="radio" aria-checked="false"><img src="./assets/pellet-1.png" alt="" /><span>KOI</span></button>
+            <button type="button" data-food="turtle" role="radio" aria-checked="false"><img src="./assets/food-turtle-lettuce.png" alt="" /><span>TURTLE</span></button>
+            <button type="button" data-food="frog" role="radio" aria-checked="false"><img src="./assets/food-frog-cricket.png" alt="" /><span>FROG</span></button>
+            <button type="button" data-food="rabbit" role="radio" aria-checked="false"><img src="./assets/food-rabbit-carrot.png" alt="" /><span>RABBIT</span></button>
+          </div>
+        </section>
       </div>
     </header>
 
@@ -294,10 +304,6 @@
       <p id="creatureInfoText"></p>
     </aside>
 
-    <div class="hint" id="hint">
-      <span class="mouse"><i></i></span>
-      <span>TOUCH THE WATER</span>
-    </div>
     <div class="pond-watcher" data-character="girl" aria-label="A girl sitting beside the koi pond and drinking bubble tea">
       <span class="watcher-shadow" aria-hidden="true"></span>
       <span class="watcher-sprite" aria-hidden="true">
