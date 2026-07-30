@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#176887" />
     <title>Koi Garden</title>
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./favicon.ico" sizes="32x32" />
+    <link rel="icon" href="./favicon.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="./favicon.png" />
     <link
       rel="preload"
       as="image"
@@ -112,7 +114,9 @@
     <header class="masthead">
       <div class="masthead-left">
       <a class="brand" href="#" aria-label="Koi Garden home">
-        <span class="brand-mark">水</span>
+        <span class="brand-mark" aria-hidden="true">
+          <img src="./favicon.png" alt="" />
+        </span>
         <span>KOI GARDEN</span>
       </a>
       <button class="round-button menu-button" id="controlsMenuButton" type="button" aria-label="Show pond controls" aria-controls="pondControls" aria-expanded="false">
