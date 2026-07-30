@@ -355,11 +355,31 @@ body.is-raining .pond-watcher .frame-6 { transform:translateY(0); }
   color: rgba(211, 231, 219, .78);
   white-space: pre;
 }
+.performance-diagnostics .diagnostic-sections pre + pre { margin-top:11px; }
 @media (max-width: 700px) {
   .performance-diagnostics {
     top: 152px;
     right: 14px;
-    width: 254px;
-    padding: 10px 12px;
+    width: max-content;
+    max-width: calc(100vw - 28px);
+    padding: 8px 9px;
+    overflow: hidden;
   }
+  .performance-diagnostics strong { font-size:7px; letter-spacing:.1em; }
+  .performance-diagnostics small { display:none; }
+  .performance-diagnostics .diagnostic-sections {
+    display:grid;
+    grid-template-columns:repeat(3,max-content);
+    gap:8px;
+    width:max-content;
+    max-width:100%;
+  }
+  .performance-diagnostics pre {
+    min-width:0;
+    overflow:hidden;
+    font-size:6.5px;
+    line-height:1.35;
+    white-space:pre;
+  }
+  .performance-diagnostics .diagnostic-sections pre + pre { margin-top:9px; }
 }

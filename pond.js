@@ -740,7 +740,7 @@ function makePelletTexture(variant=0){
 }
 startupLog('Loading critical pond textures in parallel');
 const INITIAL_KOI_TEXTURE_COUNT=4;
-const criticalAssetTotal=22;
+const criticalAssetTotal=INITIAL_KOI_TEXTURE_COUNT+1;
 let criticalAssetsLoaded=0,criticalAssetsLoading=true;
 function getPondBackgroundFiles(mobile=useMobilePond){
   const prefix=mobile?'pond-water-mobile':'pond-water';
@@ -774,43 +774,33 @@ function creatureTravelScale(){
   // per frame instead of crossing its smaller pond several times faster.
   return Math.max(.18,Math.min(1.35,app.screen.width/CREATURE_SPEED_REFERENCE_WIDTH))*creatureSpeedMultiplier;
 }
-const frogTexturePromise=loadPondAsset('frog-cropped.png');
 const [
   koiTextures,
-  frogTexture,
-  frogSwimTextures,
-  turtleTexture,
-  initialPondWaterTexture,
-  lotusFlowerTexture,
-  lotusLeafTexture,
-  pebbleTextures,
-  dragonflyTexture,
-  hummingbirdTexture,
-  rabbitSheetTexture,
-  bankPlantTextures,
-  pelletTextures,
-  animalFoodTextures
+  initialPondWaterTexture
 ]=await Promise.all([
   Promise.all(koiBreeds.slice(0,INITIAL_KOI_TEXTURE_COUNT).map(name=>loadPondAsset(`koi-${name}-cropped.png`))),
-  frogTexturePromise,
-  frogTexturePromise.then(texture=>Array(8).fill(texture)),
-  loadPondAsset('turtle-cropped.png'),
-  loadPondAsset(pondBackgroundFiles[initialTimeOfDay]),
-  loadPondAsset('lotus-flower-cropped.png'),
-  loadPondAsset('lotus-leaf-cropped.png'),
-  Promise.all([1,2,3,4,5,6].map(i=>loadPondAsset(`pebble-${i}.png`))),
-  loadPondAsset('dragonfly.png'),
-  loadPondAsset('hummingbird.png'),
-  loadPondAsset('rabbit-sheet-clean.png'),
-  Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset)),
-  Promise.resolve(Array.from({length:12},(_,index)=>makePelletTexture(index))),
-  Promise.resolve([Texture.EMPTY,Texture.EMPTY,Texture.EMPTY])
+  loadPondAsset(pondBackgroundFiles[initialTimeOfDay])
 ]);
 criticalAssetsLoading=false;
+let frogTexture=null;
+let frogSwimTextures=[];
+let turtleTexture=null;
+let lotusFlowerTexture=null;
+let lotusLeafTexture=null;
+let pebbleTextures=[];
+let dragonflyTexture=null;
+let hummingbirdTexture=null;
+let rabbitSheetTexture=null;
+let bankPlantTextures=[];
+let rabbitFrames=[];
+let decorativeAssetsReady=false;
+let decorativeAssetsPromise=null;
+const pelletTextures=Array.from({length:12},(_,index)=>makePelletTexture(index));
+const animalFoodTextures=[Texture.EMPTY,Texture.EMPTY,Texture.EMPTY];
 const pondWaterTextures={[initialTimeOfDay]:initialPondWaterTexture};
 let currentTimeOfDay=initialTimeOfDay;
 let pondWaterTexture=pondWaterTextures[currentTimeOfDay];
-startupLog('Critical pond textures loaded',{koi:koiTextures.length,pebbles:pebbleTextures.length,interactionAssets:'deferred'});
+startupLog('Critical pond textures loaded',{koi:koiTextures.length,background:pondBackgroundFiles[initialTimeOfDay],decorativeAssets:'deferred',interactionAssets:'deferred'});
 setLoadingStage('assets','complete');setLoadingStage('koi');
 let interactionAssetsPromise=null;
 function ensureInteractionAssets(){
@@ -891,7 +881,44 @@ function makeRabbitFrames(){
     return Texture.from(c);
   });
 }
-const rabbitFrames=makeRabbitFrames();
+async function loadDecorativeAssets(){
+  if(decorativeAssetsReady)return;
+  if(decorativeAssetsPromise)return decorativeAssetsPromise;
+  startupLog('Loading staged decorative textures');
+  decorativeAssetsPromise=Promise.all([
+    loadPondAsset('frog-cropped.png'),
+    loadPondAsset('turtle-cropped.png'),
+    loadPondAsset('lotus-flower-cropped.png'),
+    loadPondAsset('lotus-leaf-cropped.png'),
+    Promise.all([1,2,3,4,5,6].map(i=>loadPondAsset(`pebble-${i}.png`))),
+    loadPondAsset('dragonfly.png'),
+    loadPondAsset('hummingbird.png'),
+    loadPondAsset('rabbit-sheet-clean.png'),
+    Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset))
+  ]).then(async textures=>{
+    [
+      frogTexture,turtleTexture,lotusFlowerTexture,lotusLeafTexture,
+      pebbleTextures,dragonflyTexture,hummingbirdTexture,rabbitSheetTexture,bankPlantTextures
+    ]=textures;
+    frogSwimTextures=Array(8).fill(frogTexture);
+    rabbitFrames=makeRabbitFrames();
+    await prepareGpuResources([
+      frogTexture,turtleTexture,lotusFlowerTexture,lotusLeafTexture,
+      ...pebbleTextures,dragonflyTexture,hummingbirdTexture,rabbitSheetTexture,
+      ...bankPlantTextures,...rabbitFrames
+    ]);
+    decorativeAssetsReady=true;
+    buildPondDecor();
+    startupLog('Staged pond creatures and flora ready',{
+      pebbles:pebbleTextures.length,plants:bankPlantTextures.length,
+      turtles:turtles.length,frogs:frogs.length,rabbits:rabbits.length
+    });
+  }).catch(error=>{
+    decorativeAssetsPromise=null;
+    throw error;
+  });
+  return decorativeAssetsPromise;
+}
 
 function makeDragonfly(){
   const source=dragonflyTexture.source,img=source.resource,w=source.width,h=source.height;
@@ -2590,7 +2617,7 @@ function layout(){
   rebuildWeatherClouds();
   syncWeatherLayerVisibility();
   redrawCaustics();redrawAmbientLight();redrawWaterTint();
-  buildPondDecor();
+  if(decorativeAssetsReady)buildPondDecor();
   startupLog('Layout completed',{pondArea:{...pondArea},fish:fish.length,turtles:turtles.length,frogs:frogs.length,dragonflies:dragonflies.length});
   if(!document.body.classList.contains('pond-ready')){
     setLoadingStage('creatures','complete');setLoadingStage('flora');
@@ -2641,7 +2668,7 @@ function ensureDiagnosticsPanel(){
   const panel=document.createElement('aside');
   panel.className='performance-diagnostics';
   panel.setAttribute('aria-label','Pond performance diagnostics');
-  panel.innerHTML='<strong>POND DIAGNOSTICS</strong><small>Press D to close</small><pre></pre>';
+  panel.innerHTML='<strong>POND DIAGNOSTICS</strong><small>Press D to close</small><div class="diagnostic-sections"><pre data-diagnostic="timing"></pre><pre data-diagnostic="scene"></pre><pre data-diagnostic="renderer"></pre></div>';
   document.body.appendChild(panel);
   diagnostics.panel=panel;
   return panel;
@@ -2679,24 +2706,29 @@ function recordDiagnostics(frameStartedAt,waterMs,creatureMs){
   if(finishedAt-diagnostics.lastPaintAt<250)return;
   diagnostics.lastPaintAt=finishedAt;
   const poolCount=fishWakePool.length+rainImpactPool.length+pelletPool.length;
-  diagnostics.panel.querySelector('pre').textContent=[
+  const timingLines=[
     `FPS          ${diagnostics.fps.toFixed(1)}`,
     `FRAME        ${diagnostics.frameMs.toFixed(2)} ms`,
     `JS UPDATE    ${diagnostics.updateMs.toFixed(2)} ms`,
     `WATER CPU    ${diagnostics.waterMs.toFixed(2)} ms`,
     `CREATURES    ${diagnostics.creatureMs.toFixed(2)} ms`,
-    `SLOW FRAMES  ${diagnostics.slowFrames}`,
-    '',
+    `SLOW FRAMES  ${diagnostics.slowFrames}`
+  ];
+  const sceneLines=[
     `KOI          ${fish.length}`,
     `TREATS       ${animalTreats.length+food.length}`,
     `WAKES        ${fishWakes.length}`,
     `RAIN FX      ${rainDrops.length+rainImpacts.length}`,
-    `POOLED       ${poolCount}`,
-    '',
+    `POOLED       ${poolCount}`
+  ];
+  const rendererLines=[
     `RENDERER     ${isCanvasRenderer?'CANVAS':'WEBGL'}`,
     `RESOLUTION   ${app.renderer.resolution.toFixed(2)}x`,
     `VIEWPORT     ${app.screen.width} × ${app.screen.height}`
-  ].join('\n');
+  ];
+  diagnostics.panel.querySelector('[data-diagnostic="timing"]').textContent=timingLines.join('\n');
+  diagnostics.panel.querySelector('[data-diagnostic="scene"]').textContent=sceneLines.join('\n');
+  diagnostics.panel.querySelector('[data-diagnostic="renderer"]').textContent=rendererLines.join('\n');
 }
 ensureDiagnosticsPanel().classList.toggle('is-visible',diagnostics.enabled);
 
@@ -2722,10 +2754,11 @@ app.ticker.add(ticker=>{
     console.info('[KOI STARTUP COMPLETE] Pond initialized successfully.');
     const scheduleIdle=window.requestIdleCallback||((callback)=>setTimeout(callback,900));
     scheduleIdle(()=>loadDeferredKoiTextures().catch(showStartupError),{timeout:2500});
-    scheduleIdle(()=>loadDeferredFrogFrames().catch(showStartupError),{timeout:2200});
-    scheduleIdle(()=>prepareGpuResources([
-      ...frogSwimTextures,...rabbitFrames,...pelletTextures,...animalFoodTextures
-    ]).catch(showStartupError),{timeout:1800});
+    scheduleIdle(()=>
+      loadDecorativeAssets()
+        .then(()=>loadDeferredFrogFrames())
+        .catch(showStartupError)
+    ,{timeout:900});
   }
   const delta=Math.min(ticker.deltaTime,2),now=performance.now();
   let diagnosticsWaterMs=0,diagnosticsCreatureMs=0;
