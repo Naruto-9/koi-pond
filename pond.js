@@ -689,6 +689,18 @@ const assetPath=name=>{
   return url;
 };
 const rootStyle=document.documentElement.style;
+[
+  ['--pond-evening-art','pond-water.png'],
+  ['--pond-morning-art','pond-water-morning.png'],
+  ['--pond-afternoon-art','pond-water-afternoon.png'],
+  ['--pond-night-art','pond-water-night.png'],
+  ['--pond-mobile-evening-art','pond-water-mobile.png'],
+  ['--pond-mobile-morning-art','pond-water-mobile-morning.png'],
+  ['--pond-mobile-afternoon-art','pond-water-mobile-afternoon.png'],
+  ['--pond-mobile-night-art','pond-water-mobile-night.png']
+].forEach(([property,name])=>{
+  rootStyle.setProperty(property,`url("${assetPath(name)}")`);
+});
 rootStyle.setProperty('--watcher-boy-sip',`url("${assetPath('pond-boy-sip-sheet-aligned.png')}")`);
 rootStyle.setProperty('--watcher-girl-sip',`url("${assetPath('pond-girl-sip-sheet-aligned.png')}")`);
 rootStyle.setProperty('--watcher-boy-rain',`url("${assetPath('pond-boy-rain-sheet.png')}")`);

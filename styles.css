@@ -8,6 +8,14 @@
   --watcher-girl-sip: none;
   --watcher-boy-rain: none;
   --watcher-girl-rain: none;
+  --pond-evening-art: none;
+  --pond-morning-art: none;
+  --pond-afternoon-art: none;
+  --pond-night-art: none;
+  --pond-mobile-evening-art: none;
+  --pond-mobile-morning-art: none;
+  --pond-mobile-afternoon-art: none;
+  --pond-mobile-night-art: none;
 }
 
 * { box-sizing: border-box; }
@@ -15,7 +23,7 @@
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 
 body {
-  background: var(--pond-first-paint) url("./assets/pond-water.png") center / 100% 100% no-repeat;
+  background: var(--pond-first-paint) var(--pond-evening-art) center / 100% 100% no-repeat;
   color: var(--cream);
   font-family: "DM Sans", sans-serif;
 }
@@ -23,9 +31,9 @@ html[data-time="morning"] { --pond-first-paint:#82958a; }
 html[data-time="afternoon"] { --pond-first-paint:#71857a; }
 html[data-time="evening"] { --pond-first-paint:#756d65; }
 html[data-time="night"] { --pond-first-paint:#183b3d; }
-html[data-time="morning"] body { background-image:url("./assets/pond-water-morning.png"); }
-html[data-time="afternoon"] body { background-image:url("./assets/pond-water-afternoon.png"); }
-html[data-time="night"] body { background-image:url("./assets/pond-water-night.png"); }
+html[data-time="morning"] body { background-image:var(--pond-morning-art); }
+html[data-time="afternoon"] body { background-image:var(--pond-afternoon-art); }
+html[data-time="night"] body { background-image:var(--pond-night-art); }
 .pond-loader { position:fixed; inset:0; z-index:30; display:grid; place-items:end center; overflow:hidden; padding:28px; background-color:#176887; background-image:linear-gradient(180deg,rgba(5,27,26,.02) 35%,rgba(5,27,26,.56) 100%),url("./assets/koi-garden-splash-with-logo.png"); background-position:center,center; background-size:cover,cover; background-repeat:no-repeat,no-repeat; pointer-events:none; transition:opacity .5s ease,visibility .5s ease; }
 @supports (background-image:image-set(url("") type("image/webp"))) {
   .pond-loader {
@@ -115,13 +123,13 @@ body.pond-ready .pond-loader { opacity:0; visibility:hidden; transition-delay:2s
   width: 100%;
   height: 100%;
   cursor: crosshair;
-  background: var(--pond-first-paint) url("./assets/pond-water.png") center / 100% 100% no-repeat;
+  background: var(--pond-first-paint) var(--pond-evening-art) center / 100% 100% no-repeat;
   opacity: 0;
   transition: opacity .24s ease-out;
 }
-html[data-time="morning"] #pond { background-image:url("./assets/pond-water-morning.png"); }
-html[data-time="afternoon"] #pond { background-image:url("./assets/pond-water-afternoon.png"); }
-html[data-time="night"] #pond { background-image:url("./assets/pond-water-night.png"); }
+html[data-time="morning"] #pond { background-image:var(--pond-morning-art); }
+html[data-time="afternoon"] #pond { background-image:var(--pond-afternoon-art); }
+html[data-time="night"] #pond { background-image:var(--pond-night-art); }
 body.pond-ready #pond { opacity: 1; }
 
 .masthead {
@@ -302,10 +310,10 @@ body.is-raining .pond-watcher .frame-6 { transform:translateY(0); }
 @keyframes scroll { 0% { transform: translateY(0); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(6px); opacity: 0; } }
 
 @media (max-width:700px) and (orientation:portrait) {
-  body, #pond { background-image:url("./assets/pond-water-mobile.png"); }
-  html[data-time="morning"] body,html[data-time="morning"] #pond { background-image:url("./assets/pond-water-mobile-morning.png"); }
-  html[data-time="afternoon"] body,html[data-time="afternoon"] #pond { background-image:url("./assets/pond-water-mobile-afternoon.png"); }
-  html[data-time="night"] body,html[data-time="night"] #pond { background-image:url("./assets/pond-water-mobile-night.png"); }
+  body, #pond { background-image:var(--pond-mobile-evening-art); }
+  html[data-time="morning"] body,html[data-time="morning"] #pond { background-image:var(--pond-mobile-morning-art); }
+  html[data-time="afternoon"] body,html[data-time="afternoon"] #pond { background-image:var(--pond-mobile-afternoon-art); }
+  html[data-time="night"] body,html[data-time="night"] #pond { background-image:var(--pond-mobile-night-art); }
   .menu-button { display:grid; }
   body.controls-open .menu-button span:nth-child(1) { transform:translateY(4px) rotate(45deg); }
   body.controls-open .menu-button span:nth-child(2) { opacity:0; }
