@@ -1,6 +1,6 @@
 import {
   Application, Assets, Container, Graphics, Sprite, Texture, BlurFilter,
-  ColorMatrixFilter, DisplacementFilter, MeshPlane, RendererType,
+  ColorMatrixFilter, DisplacementFilter, MeshPlane, Rectangle, RendererType,
   WebGLRenderer, CanvasRenderer
 } from 'pixi.js';
 import 'pixi.js/browser';
@@ -189,6 +189,7 @@ app.stage.addChild(waterLayer, refractedWaterLayer, waterMotionLayer, waterTintL
 startupLog('Scene layers created',{stageChildren:app.stage.children.length});
 refractedWaterLayer.mask=refractionMask;waterMotionLayer.mask=refractionMask;waterTintLayer.mask=pondMask;shorelineLayer.mask=pondMask;decorLayer.mask=pondMask;shadowLayer.mask=pondMask;fishLayer.mask=pondMask;floatingLayer.mask=pondMask;lightingLayer.mask=pondMask;surfaceLayer.mask=pondMask;
 const pondArea={cx:0,cy:0,rx:1,ry:1};
+const pondFilterArea=new Rectangle();
 let pondOutline=[];
 // Normalized points trace the painted waterline clockwise. They are converted
 // to a smooth closed curve below, so the optional mesh follows the organic
@@ -1293,10 +1294,21 @@ function makeKoiTextures(colors, seed) {
 }
 
 const textureSets = palettes.map((p,i)=>makeKoiTextures(p, 1307+i*91));
-const shadowTexture = (()=>{const g=new Graphics().ellipse(0,0,76,24).fill({color:0x001012,alpha:.48});return app.renderer.generateTexture({target:g,resolution:1})})();
+const shadowTexture = (()=>{
+  // Bake the soft edge once instead of running one BlurFilter render pass for
+  // every koi on every frame.
+  const canvas=document.createElement('canvas');
+  canvas.width=176;canvas.height=72;
+  const context=canvas.getContext('2d');
+  context.filter='blur(5px)';
+  context.fillStyle='rgba(0,16,18,.48)';
+  context.beginPath();
+  context.ellipse(88,36,76,24,0,0,Math.PI*2);
+  context.fill();
+  context.filter='none';
+  return Texture.from(canvas);
+})();
 startupLog('Generated runtime textures',{paletteSets:textureSets.length,shadow:[shadowTexture.width,shadowTexture.height]});
-const shadowBlur = isCanvasRenderer?null:new BlurFilter({strength:5,quality:1});
-if(shadowBlur)shadowBlur.resolution='inherit';
 
 class Koi {
   constructor(initial=false,breedIndex=fish.length%koiTextures.length) {
@@ -1325,7 +1337,7 @@ class Koi {
     this.bodyRest=this.bodyBuffer?new Float32Array(this.bodyBuffer.data):null;
     this.baseBodyAlpha=.88+Math.random()*.1;this.body.alpha=this.baseBodyAlpha;
     this.view.addChild(this.body); this.view.scale.set(this.scale);
-    this.shadow=new Sprite(shadowTexture);this.shadow.anchor.set(.5);this.shadow.alpha=.32;this.shadow.scale.set(this.scale*1.15);if(!isCanvasRenderer)this.shadow.filters=[shadowBlur];
+    this.shadow=new Sprite(shadowTexture);this.shadow.anchor.set(.5);this.shadow.alpha=.32;this.shadow.scale.set(this.scale*1.15);
     shadowLayer.addChild(this.shadow);fishLayer.addChild(this.view);
   }
   pickWaypoint(){
@@ -2357,6 +2369,21 @@ function layout(){
     waterLeft+nx*pondWaterTexture.width*textureScaleX,
     waterTop+ny*pondWaterTexture.height*textureScaleY
   ]);
+  // All of these layers are pond-masked, so filter pixels outside this padded
+  // shoreline box can never contribute to the final frame.
+  const outlineX=pondOutline.filter((_,index)=>index%2===0);
+  const outlineY=pondOutline.filter((_,index)=>index%2===1);
+  const filterPadding=24;
+  const filterLeft=Math.max(0,Math.min(...outlineX)-filterPadding);
+  const filterTop=Math.max(0,Math.min(...outlineY)-filterPadding);
+  const filterRight=Math.min(app.screen.width,Math.max(...outlineX)+filterPadding);
+  const filterBottom=Math.min(app.screen.height,Math.max(...outlineY)+filterPadding);
+  pondFilterArea.x=filterLeft;
+  pondFilterArea.y=filterTop;
+  pondFilterArea.width=Math.max(1,filterRight-filterLeft);
+  pondFilterArea.height=Math.max(1,filterBottom-filterTop);
+  [refractedWater,shorelineLayer,decorLayer,shadowLayer,fishLayer,floatingLayer,surfaceLayer]
+    .forEach(layer=>{layer.filterArea=pondFilterArea;});
   const sw=rippleMapCanvas.width,sh=rippleMapCanvas.height;
   for(let y=0;y<sh;y++)for(let x=0;x<sw;x++){
     const i=y*sw+x,edge=pondDistance(x/sw*app.screen.width,y/sh*app.screen.height);
