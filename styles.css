@@ -22,6 +22,12 @@
 
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 
+body:not(.splash-complete) :is(.masthead,.pond-card,.mobile-panel-tools,.performance-diagnostics) {
+  opacity:0 !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+
 body {
   background: var(--pond-first-paint) var(--pond-evening-art) center / 100% 100% no-repeat;
   color: var(--cream);
@@ -116,6 +122,7 @@ body.pond-ready #pond { opacity: 1; }
   justify-content: space-between;
   align-items: center;
   pointer-events: none;
+  transition:opacity .24s ease,visibility .24s;
 }
 .masthead-left { display:flex; align-items:center; gap:7px; pointer-events:auto; }
 .masthead-right { position:relative; display:flex; align-items:center; gap:8px; padding:4px 6px 4px 14px; border:1px solid rgba(255,255,255,.14); border-radius:999px; background:linear-gradient(135deg,rgba(18,43,40,.66),rgba(12,33,32,.54)); pointer-events:auto; backdrop-filter:blur(16px) saturate(.82); box-shadow:0 7px 24px rgba(10,24,23,.16),inset 0 1px rgba(255,255,255,.06); }
@@ -190,6 +197,7 @@ body.pond-ready #pond { opacity: 1; }
 .menu-button { display:none; align-content:center; gap:3px; background:rgba(6,30,31,.46); border-color:rgba(255,255,255,.16); color:#fffaf0; backdrop-filter:blur(14px); }
 .menu-button span { width:13px; height:1px; background:currentColor; transition:transform .22s ease,opacity .22s ease; }
 .menu-button:hover, .menu-button:active, body.controls-open .menu-button { background:rgba(6,30,31,.46); border-color:rgba(255,255,255,.16); color:#fffaf0; backdrop-filter:blur(14px); }
+.mobile-panel-tools { display:none; transition:opacity .24s ease,visibility .24s; }
 
 main { position: relative; z-index: 2; height: 100%; pointer-events: none; }
 .hero { position: absolute; right: 28px; bottom: 25px; max-width: 285px; text-align: right; }
@@ -301,6 +309,35 @@ body.is-raining .pond-watcher .frame-6 { transform:translateY(0); }
 
 @media (max-width: 700px) {
   .masthead { top: 14px; left: 14px; right: 14px; }
+  .mobile-panel-tools {
+    position:fixed;
+    z-index:41;
+    top:59px;
+    right:14px;
+    display:flex;
+    gap:5px;
+    pointer-events:auto;
+  }
+  .mobile-panel-button { width:31px; height:31px; background:rgba(6,30,31,.62); }
+  .mobile-panel-button svg { width:15px; }
+  .mobile-panel-button[aria-expanded="true"] { background:var(--cream); color:#0c2828; }
+  .food-panel {
+    position:fixed;
+    z-index:40;
+    top:98px;
+    right:14px;
+    opacity:0;
+    visibility:hidden;
+    transform:translateY(-5px) scale(.985);
+    transition:opacity .18s ease,transform .18s ease,visibility .18s;
+    pointer-events:none;
+  }
+  body.food-panel-open .food-panel {
+    opacity:1;
+    visibility:visible;
+    transform:none;
+    pointer-events:auto;
+  }
   .hero { left: auto; right: 16px; bottom: 18px; max-width: 215px; }
   h1 { font-size: 27px; }
   .intro { display: none; }
@@ -358,12 +395,22 @@ body.is-raining .pond-watcher .frame-6 { transform:translateY(0); }
 .performance-diagnostics .diagnostic-sections pre + pre { margin-top:11px; }
 @media (max-width: 700px) {
   .performance-diagnostics {
-    top: 152px;
+    top: 98px;
     right: 14px;
     width: max-content;
     max-width: calc(100vw - 28px);
     padding: 8px 9px;
     overflow: hidden;
+  }
+  .performance-diagnostics.is-visible {
+    opacity:0;
+    visibility:hidden;
+    transform:translateY(-5px) scale(.985);
+  }
+  body.diagnostics-panel-open .performance-diagnostics.is-visible {
+    opacity:1;
+    visibility:visible;
+    transform:none;
   }
   .performance-diagnostics strong { font-size:7px; letter-spacing:.1em; }
   .performance-diagnostics small { display:none; }

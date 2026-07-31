@@ -171,7 +171,7 @@
           </label>
         </div>
         </div>
-        <section class="food-panel" aria-label="Pond food selector">
+        <section class="food-panel" id="foodPanel" aria-label="Pond food selector">
           <span class="food-panel__label">POND FOOD</span>
           <div class="food-options" role="radiogroup" aria-label="Choose food">
             <button type="button" data-food="" role="radio" aria-checked="true"><i class="food-ripple" aria-hidden="true"></i><span>RIPPLE</span></button>
@@ -183,6 +183,18 @@
         </section>
       </div>
     </header>
+    <div class="mobile-panel-tools" aria-label="Pond quick panels">
+      <button class="round-button mobile-panel-button" id="foodPanelButton" type="button" aria-label="Open pond food" aria-controls="foodPanel" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 10h14l-1.5 7h-11L5 10Zm2-3c1.8-1.8 3.7-1.8 5.5 0M14 7c1.3-1.3 2.7-1.3 4 0"/>
+        </svg>
+      </button>
+      <button class="round-button mobile-panel-button" id="diagnosticsPanelButton" type="button" aria-label="Open pond diagnostics" aria-controls="pondDiagnostics" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 16h3l2-7 3 10 2-6 2 3h4"/>
+        </svg>
+      </button>
+    </div>
 
     <main>
       <section class="hero">

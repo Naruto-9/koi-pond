@@ -2667,6 +2667,7 @@ function ensureDiagnosticsPanel(){
   if(diagnostics.panel)return diagnostics.panel;
   const panel=document.createElement('aside');
   panel.className='performance-diagnostics';
+  panel.id='pondDiagnostics';
   panel.setAttribute('aria-label','Pond performance diagnostics');
   panel.innerHTML='<strong>POND DIAGNOSTICS</strong><small>Press D to close</small><div class="diagnostic-sections"><pre data-diagnostic="timing"></pre><pre data-diagnostic="scene"></pre><pre data-diagnostic="renderer"></pre></div>';
   document.body.appendChild(panel);
@@ -2731,13 +2732,54 @@ function recordDiagnostics(frameStartedAt,waterMs,creatureMs){
   diagnostics.panel.querySelector('[data-diagnostic="renderer"]').textContent=rendererLines.join('\n');
 }
 ensureDiagnosticsPanel().classList.toggle('is-visible',diagnostics.enabled);
+const foodPanelButton=document.querySelector('#foodPanelButton');
+const diagnosticsPanelButton=document.querySelector('#diagnosticsPanelButton');
+function setMobilePanel(name,open){
+  const foodOpen=name==='food'&&open;
+  const diagnosticsOpen=name==='diagnostics'&&open;
+  document.body.classList.toggle('food-panel-open',foodOpen);
+  document.body.classList.toggle('diagnostics-panel-open',diagnosticsOpen);
+  foodPanelButton?.setAttribute('aria-expanded',String(foodOpen));
+  diagnosticsPanelButton?.setAttribute('aria-expanded',String(diagnosticsOpen));
+  if(open){
+    if(useMobilePond)setControlsOpen(false);
+    soundControl.classList.remove('is-open');
+    musicPanelButton.setAttribute('aria-expanded','false');
+  }
+}
+foodPanelButton?.addEventListener('click',()=>{
+  setMobilePanel('food',!document.body.classList.contains('food-panel-open'));
+});
+diagnosticsPanelButton?.addEventListener('click',()=>{
+  if(!diagnostics.enabled)toggleDiagnostics();
+  setMobilePanel('diagnostics',!document.body.classList.contains('diagnostics-panel-open'));
+});
+controlsMenuButton?.addEventListener('click',()=>setMobilePanel('',false));
+musicPanelButton?.addEventListener('click',()=>setMobilePanel('',false));
+canvas.addEventListener('pointerdown',()=>setMobilePanel('',false));
 
 let firstRenderedFrame=false;
+const pondLoader=document.querySelector('.pond-loader');
+let splashCompletionTimer=0;
+function revealPondInterface(){
+  clearTimeout(splashCompletionTimer);
+  document.body.classList.add('splash-complete');
+  pondLoader?.removeEventListener('transitionend',handleSplashTransitionEnd);
+}
+function handleSplashTransitionEnd(event){
+  if(event.propertyName==='opacity'&&document.body.classList.contains('pond-ready')){
+    revealPondInterface();
+  }
+}
+pondLoader?.addEventListener('transitionend',handleSplashTransitionEnd);
 app.ticker.add(ticker=>{
   if(!firstRenderedFrame){
     firstRenderedFrame=true;
     setLoadingStage('ready','complete');
     document.body.classList.add('pond-ready');
+    // The loader waits two seconds, then fades for half a second. The fallback
+    // covers reduced-motion settings or a browser that suppresses transition events.
+    splashCompletionTimer=setTimeout(revealPondInterface,2800);
     pondReadyForMusic=true;
     startAmbientSoundscape()
       .then(removeEarlyAudioUnlock)
