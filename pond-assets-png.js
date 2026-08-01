@@ -6,6 +6,7 @@ export const bundledAssets=import.meta.glob([
   './assets/pellet-1[0-2].png',
   './assets/food-*.png',
   './assets/dragonfly.png',
+  './assets/firefly-realistic.png',
   './assets/hummingbird.png',
   './assets/rabbit-sheet-clean.png',
   './assets/pond-boy-sip-sheet-aligned.png',
