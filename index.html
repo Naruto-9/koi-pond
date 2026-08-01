@@ -128,7 +128,10 @@
         <svg class="pill-playback-border" viewBox="0 0 180 42" preserveAspectRatio="none" aria-hidden="true">
           <path id="pillPlaybackProgress" pathLength="100" d="M1 21 A20 20 0 0 1 21 1 H159 A20 20 0 0 1 179 21 A20 20 0 0 1 159 41 H21 A20 20 0 0 1 1 21"/>
         </svg>
-        <time class="garden-clock" id="gardenClock" aria-label="Local time">--:--</time>
+        <span class="garden-datetime">
+          <time class="garden-date" id="gardenDate" aria-label="Local date">---, --- --</time>
+          <time class="garden-clock" id="gardenClock" aria-label="Local time">--:--</time>
+        </span>
         <time class="pill-track-remaining" id="pillTrackRemaining" aria-label="Song time remaining">−–:––</time>
         <div class="sound-control">
         <button class="round-button music-panel-button" id="musicPanelButton" aria-label="Open music controls" aria-controls="musicPanel" aria-expanded="false">
@@ -274,6 +277,7 @@
         <label class="creature-option"><span><strong>Turtles</strong><small>Adult and juvenile pond turtles</small></span><input type="checkbox" data-creature="turtles" checked /><i></i></label>
         <label class="creature-option"><span><strong>Frogs</strong><small>Resting and hopping pond frogs</small></span><input type="checkbox" data-creature="frogs" checked /><i></i></label>
         <label class="creature-option"><span><strong>Dragonflies</strong><small>Hovering visitors above the water</small></span><input type="checkbox" data-creature="dragonflies" checked /><i></i></label>
+        <label class="creature-option"><span><strong>Fireflies</strong><small>Glowing visitors at dusk and night</small></span><input type="checkbox" data-creature="fireflies" checked /><i></i></label>
         <label class="creature-option"><span><strong>Hummingbirds</strong><small>Hovering garden visitors with rapid wingbeats</small></span><input type="checkbox" data-creature="hummingbirds" checked /><i></i></label>
         <label class="creature-option"><span><strong>Rabbit</strong><small>Resting and hopping along the garden bank</small></span><input type="checkbox" data-creature="rabbits" checked /><i></i></label>
         <button class="dialog-done" value="close">DONE</button>
@@ -295,6 +299,27 @@
     </div>
     <div class="grain"></div>
 
+    <script>
+      (()=>{
+        if(!('serviceWorker' in navigator))return;
+        if(location.hostname==='localhost'||location.hostname==='127.0.0.1')return;
+        const recoveryKey='koi-garden-stale-asset-reload';
+        navigator.serviceWorker.addEventListener('message',event=>{
+          if(event.data?.type!=='POND_ASSET_STALE')return;
+          try{
+            if(sessionStorage.getItem(recoveryKey))return;
+            sessionStorage.setItem(recoveryKey,'1');
+          }catch{return;}
+          location.reload();
+        });
+        navigator.serviceWorker.register(new URL('sw.js',document.baseURI),{
+          scope:'./',
+          updateViaCache:'none'
+        }).then(registration=>registration.update()).catch(error=>{
+          console.warn('[KOI CACHE] Service worker registration failed',error);
+        });
+      })();
+    </script>
     <script type="module" src="/pond.js"></script>
   </body>
 </html>

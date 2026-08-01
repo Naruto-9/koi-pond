@@ -87,13 +87,24 @@ startupLog('Module loaded',{
   userAgent:navigator.userAgent
 });
 const gardenClock=document.querySelector('#gardenClock');
+const gardenDate=document.querySelector('#gardenDate');
 const clockFormatter=new Intl.DateTimeFormat(undefined,{hour:'2-digit',minute:'2-digit'});
+const dateFormatter=new Intl.DateTimeFormat(undefined,{weekday:'short',month:'short',day:'numeric'});
 function updateGardenClock(){
-  if(!gardenClock)return;
+  if(!gardenClock&&!gardenDate)return;
   const now=new Date();
-  gardenClock.textContent=clockFormatter.format(now);
-  gardenClock.dateTime=now.toISOString();
-  gardenClock.setAttribute('aria-label',`Local time ${gardenClock.textContent}`);
+  const dateTime=now.toISOString();
+  if(gardenClock){
+    gardenClock.textContent=clockFormatter.format(now);
+    gardenClock.dateTime=dateTime;
+    gardenClock.setAttribute('aria-label',`Local time ${gardenClock.textContent}`);
+  }
+  if(gardenDate){
+    gardenDate.textContent=dateFormatter.format(now);
+    const localDate=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+    gardenDate.dateTime=localDate;
+    gardenDate.setAttribute('aria-label',`Local date ${dateFormatter.format(now)}`);
+  }
 }
 updateGardenClock();
 setInterval(updateGardenClock,15_000);
@@ -624,7 +635,7 @@ function updateRain(delta,now){
   updateRainImpacts(delta);
 }
 const creatureVisibility={
-  koi:true,turtles:true,frogs:true,dragonflies:true,hummingbirds:true,rabbits:true,plants:true,
+  koi:true,turtles:true,frogs:true,dragonflies:true,fireflies:true,hummingbirds:true,rabbits:true,plants:true,
   ...(pondPreferences.creatures||{})
 };
 let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
@@ -789,6 +800,8 @@ let lotusFlowerTexture=null;
 let lotusLeafTexture=null;
 let pebbleTextures=[];
 let dragonflyTexture=null;
+let fireflyTexture=null;
+let fireflyGlowTexture=null;
 let hummingbirdTexture=null;
 let rabbitSheetTexture=null;
 let bankPlantTextures=[];
@@ -866,7 +879,7 @@ async function loadDeferredFrogFrames(){
   });
   startupLog('Deferred frog animation frames loaded',{count:textures.length});
 }
-const turtles=[],frogs=[],floaters=[],dragonflies=[],hummingbirds=[],rabbits=[],nectarTargets=[];
+const turtles=[],frogs=[],floaters=[],dragonflies=[],fireflies=[],hummingbirds=[],rabbits=[],nectarTargets=[];
 
 function makeRabbitFrames(){
   const source=rabbitSheetTexture.source,img=source.resource;
@@ -892,19 +905,20 @@ async function loadDecorativeAssets(){
     loadPondAsset('lotus-leaf-cropped.png'),
     Promise.all([1,2,3,4,5,6].map(i=>loadPondAsset(`pebble-${i}.png`))),
     loadPondAsset('dragonfly.png'),
+    loadPondAsset('firefly-realistic.png'),
     loadPondAsset('hummingbird.png'),
     loadPondAsset('rabbit-sheet-clean.png'),
     Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset))
   ]).then(async textures=>{
     [
       frogTexture,turtleTexture,lotusFlowerTexture,lotusLeafTexture,
-      pebbleTextures,dragonflyTexture,hummingbirdTexture,rabbitSheetTexture,bankPlantTextures
+      pebbleTextures,dragonflyTexture,fireflyTexture,hummingbirdTexture,rabbitSheetTexture,bankPlantTextures
     ]=textures;
     frogSwimTextures=Array(8).fill(frogTexture);
     rabbitFrames=makeRabbitFrames();
     await prepareGpuResources([
       frogTexture,turtleTexture,lotusFlowerTexture,lotusLeafTexture,
-      ...pebbleTextures,dragonflyTexture,hummingbirdTexture,rabbitSheetTexture,
+      ...pebbleTextures,dragonflyTexture,fireflyTexture,hummingbirdTexture,rabbitSheetTexture,
       ...bankPlantTextures,...rabbitFrames
     ]);
     decorativeAssetsReady=true;
@@ -947,6 +961,47 @@ function makeDragonfly(){
     return {view:wing,baseX:scale,baseY:scale,phase:s[5],side:s[4]};
   });
   return {root,wings};
+}
+
+function makeFirefly(){
+  const source=fireflyTexture.source,img=source.resource,w=source.width,h=source.height;
+  const root=new Container(),scale=27/(h*.62),bodyRoot={x:w*.5,y:h*.34};
+  const cut=(x,y,cw,ch)=>{
+    const pad=4,c=document.createElement('canvas');c.width=Math.ceil(cw)+pad*2;c.height=Math.ceil(ch)+pad*2;
+    c.getContext('2d').drawImage(img,x,y,cw,ch,pad,pad,cw,ch);
+    return {texture:Texture.from(c),pad,x,y};
+  };
+  if(!fireflyGlowTexture){
+    const glowCanvas=document.createElement('canvas');glowCanvas.width=128;glowCanvas.height=128;
+    const context=glowCanvas.getContext('2d');
+    const gradient=context.createRadialGradient(64,64,0,64,64,62);
+    gradient.addColorStop(0,'rgba(255,255,205,.96)');
+    gradient.addColorStop(.12,'rgba(238,255,134,.72)');
+    gradient.addColorStop(.38,'rgba(207,241,91,.28)');
+    gradient.addColorStop(.7,'rgba(183,224,72,.07)');
+    gradient.addColorStop(1,'rgba(172,215,68,0)');
+    context.fillStyle=gradient;context.fillRect(0,0,128,128);
+    fireflyGlowTexture=Texture.from(glowCanvas);
+  }
+  const glow=new Sprite(fireflyGlowTexture);glow.anchor.set(.5);glow.position.set(0,10);
+  glow.width=54;glow.height=42;glow.blendMode='screen';glow.alpha=0;
+  root.addChild(glow);
+  const bodyPart=cut(w*.35,h*.04,w*.30,h*.64),body=new Sprite(bodyPart.texture);
+  body.pivot.set(bodyRoot.x-bodyPart.x+bodyPart.pad,bodyRoot.y-bodyPart.y+bodyPart.pad);
+  body.scale.set(scale);root.addChild(body);
+  const wingSpecs=[
+    [w*.055,h*.69,w*.38,h*.22,-1],
+    [w*.565,h*.69,w*.38,h*.22,1]
+  ];
+  const wings=wingSpecs.map(spec=>{
+    const part=cut(spec[0],spec[1],spec[2],spec[3]),wing=new Sprite(part.texture);
+    const rootX=spec[4]<0?part.texture.width-part.pad:part.pad;
+    wing.pivot.set(rootX,part.texture.height*.52);
+    wing.position.set(spec[4]*2,-2);wing.scale.set(scale);wing.alpha=.55;
+    root.addChildAt(wing,1);
+    return {view:wing,side:spec[4],baseScale:scale};
+  });
+  return {root,wings,glow};
 }
 
 function makeHummingbird(){
@@ -1119,7 +1174,7 @@ function buildPondDecor(){
   if(returningCreature)finishCreatureReturn();
   if(focusedCreature&&focusedCreature.kind!=='koi')clearCreatureFocus(false);
   animalTreats.splice(0).forEach(treat=>treat.view?.destroy());
-  turtles.length=0;frogs.length=0;floaters.length=0;dragonflies.length=0;hummingbirds.length=0;rabbits.length=0;
+  turtles.length=0;frogs.length=0;floaters.length=0;dragonflies.length=0;fireflies.length=0;hummingbirds.length=0;rabbits.length=0;
   shorelineLayer.removeChildren().forEach(child=>child.destroy());
   bankPlantLayer.removeChildren().forEach(child=>child.destroy());
   nectarTargets.length=0;
@@ -1219,6 +1274,19 @@ function buildPondDecor(){
     const heading=view.rotation-Math.PI/2;
     dragonflies.push({view,wings:built.wings,baseScale:mobileContentScale,phase:i*3.1,heading,targetX:view.x+Math.cos(heading)*360,targetY:view.y+Math.sin(heading)*360,timer:150+i*90,flightEnergy:0,touchTimer:520+i*310,touchProgress:-1,touchMade:false});
   });
+  const fireflyCount=useMobilePond?5:8;
+  for(let i=0;i<fireflyCount;i++){
+    const built=makeFirefly(),view=built.root;
+    const x=w*(.16+Math.random()*.70),y=h*(.15+Math.random()*.63);
+    view.position.set(x,y);view.rotation=Math.random()*Math.PI*2;
+    view.scale.set(mobileContentScale*(.86+Math.random()*.28));view.alpha=0;aerialLayer.addChild(view);
+    addInspectable(view,'fireflies','Pond Firefly','BIOLUMINESCENT BEETLE','Fireflies are beetles that communicate with carefully timed flashes of cold light. Their lanterns produce very little heat, and each species has its own distinctive signaling rhythm.');
+    fireflies.push({
+      view,wings:built.wings,glow:built.glow,baseScale:view.scale.x,phase:Math.random()*Math.PI*2,
+      heading:view.rotation-Math.PI/2,targetX:x,targetY:y,timer:20+Math.random()*100,
+      velocityX:0,velocityY:0,flashRate:.00021+Math.random()*.00008
+    });
+  }
   const hummingbirdBuilt=makeHummingbird(),hummingbirdView=hummingbirdBuilt.root;
   hummingbirdView.position.set(w*(useMobilePond?.80:.84),h*(useMobilePond?.18:.24));
   hummingbirdView.rotation=-1.15;hummingbirdView.scale.set(mobileContentScale);hummingbirdView.alpha=.94;aerialLayer.addChild(hummingbirdView);
@@ -1267,6 +1335,7 @@ function applyCreatureVisibility(){
   turtles.forEach(t=>t.view.visible=creatureVisibility.turtles);
   frogs.forEach(f=>f.view.visible=creatureVisibility.frogs);
   dragonflies.forEach(v=>v.view.visible=creatureVisibility.dragonflies);
+  fireflies.forEach(v=>v.view.visible=creatureVisibility.fireflies);
   hummingbirds.forEach(v=>v.view.visible=creatureVisibility.hummingbirds);
   rabbits.forEach(v=>v.view.visible=creatureVisibility.rabbits);
   if(focusedCreature&&!creatureVisibility[focusedCreature.kind])clearCreatureFocus(false);
@@ -1653,6 +1722,10 @@ function syncKoiControls(){
   document.querySelector('#removeFish').disabled=count<=1;document.querySelector('#addFish').disabled=count>=20;
 }
 function angleDiff(a,b){return Math.atan2(Math.sin(a-b),Math.cos(a-b));}
+function smoothstep(edge0,edge1,value){
+  const t=Math.max(0,Math.min(1,(value-edge0)/(edge1-edge0)));
+  return t*t*(3-2*t);
+}
 function blendColor(from,to,amount){
   const a=Math.max(0,Math.min(1,amount)),fr=from>>16,fg=from>>8&255,fb=from&255,tr=to>>16,tg=to>>8&255,tb=to&255;
   return ((fr+(tr-fr)*a)<<16)|((fg+(tg-fg)*a)<<8)|(fb+(tb-fb)*a);
@@ -2659,6 +2732,7 @@ window.addEventListener('resize',schedulePondResize,{passive:true});
 window.visualViewport?.addEventListener('resize',schedulePondResize,{passive:true});
 document.addEventListener('visibilitychange',()=>document.hidden?app.ticker.stop():app.ticker.start());
 
+/* Diagnostics moved to a lazy module so it does not delay the first pond frame.
 const diagnostics={
   enabled:pondPreferences.diagnosticsVisible??true,panel:null,lastFrameAt:performance.now(),lastPaintAt:0,slowFrames:0,
   fps:60,frameMs:16.7,updateMs:0,waterMs:0,creatureMs:0
@@ -2732,6 +2806,38 @@ function recordDiagnostics(frameStartedAt,waterMs,creatureMs){
   diagnostics.panel.querySelector('[data-diagnostic="renderer"]').textContent=rendererLines.join('\n');
 }
 ensureDiagnosticsPanel().classList.toggle('is-visible',diagnostics.enabled);
+*/
+const diagnostics={enabled:false};
+let diagnosticsController=null;
+let diagnosticsLoadPromise=null;
+function loadDiagnostics(){
+  if(diagnosticsController)return Promise.resolve(diagnosticsController);
+  if(!diagnosticsLoadPromise){
+    diagnosticsLoadPromise=import('./pond-diagnostics.js').then(({createPondDiagnostics})=>{
+      diagnosticsController=createPondDiagnostics({
+        state:diagnostics,
+        initialEnabled:pondPreferences.diagnosticsVisible??true,
+        onPreferenceChange:enabled=>savePondPreferences({diagnosticsVisible:enabled}),
+        getSnapshot:()=>({
+          koi:fish.length,
+          treats:animalTreats.length+food.length,
+          wakes:fishWakes.length,
+          rainFx:rainDrops.length+rainImpacts.length,
+          pooled:fishWakePool.length+rainImpactPool.length+pelletPool.length,
+          renderer:isCanvasRenderer?'CANVAS':'WEBGL',
+          resolution:app.renderer.resolution,
+          width:app.screen.width,
+          height:app.screen.height
+        })
+      });
+      return diagnosticsController;
+    });
+  }
+  return diagnosticsLoadPromise;
+}
+function recordDiagnostics(frameStartedAt,waterMs,creatureMs){
+  diagnosticsController?.record(frameStartedAt,waterMs,creatureMs);
+}
 const foodPanelButton=document.querySelector('#foodPanelButton');
 const diagnosticsPanelButton=document.querySelector('#diagnosticsPanelButton');
 function setMobilePanel(name,open){
@@ -2750,8 +2856,9 @@ function setMobilePanel(name,open){
 foodPanelButton?.addEventListener('click',()=>{
   setMobilePanel('food',!document.body.classList.contains('food-panel-open'));
 });
-diagnosticsPanelButton?.addEventListener('click',()=>{
-  if(!diagnostics.enabled)toggleDiagnostics();
+diagnosticsPanelButton?.addEventListener('click',async()=>{
+  const controller=await loadDiagnostics();
+  if(!diagnostics.enabled)controller.toggle();
   setMobilePanel('diagnostics',!document.body.classList.contains('diagnostics-panel-open'));
 });
 controlsMenuButton?.addEventListener('click',()=>setMobilePanel('',false));
@@ -2775,8 +2882,12 @@ pondLoader?.addEventListener('transitionend',handleSplashTransitionEnd);
 app.ticker.add(ticker=>{
   if(!firstRenderedFrame){
     firstRenderedFrame=true;
+    try{sessionStorage.removeItem('koi-garden-stale-asset-reload')}catch{}
     setLoadingStage('ready','complete');
     document.body.classList.add('pond-ready');
+    // Optional instrumentation arrives after the visible pond, in its own
+    // network chunk, so it cannot hold up the first render.
+    loadDiagnostics().catch(error=>console.warn('[KOI DIAGNOSTICS] Lazy load failed',error));
     // The loader waits two seconds, then fades for half a second. The fallback
     // covers reduced-motion settings or a browser that suppresses transition events.
     splashCompletionTimer=setTimeout(revealPondInterface,2800);
@@ -3128,6 +3239,41 @@ app.ticker.add(ticker=>{
     });
     d.view.y+=Math.sin(now*.004+d.phase)*.025*delta;
   });
+  if(creatureVisibility.fireflies)fireflies.forEach(f=>{
+    if(focusedCreature?.view===f.view||returningCreature?.view===f.view)return;
+    f.timer-=delta;
+    if(f.timer<=0||Math.hypot(f.targetX-f.view.x,f.targetY-f.view.y)<12){
+      f.targetX=app.screen.width*(.10+Math.random()*.80);
+      f.targetY=app.screen.height*(.10+Math.random()*.72);
+      f.timer=110+Math.random()*230;
+    }
+    const dx=f.targetX-f.view.x,dy=f.targetY-f.view.y,desired=Math.atan2(dy,dx);
+    f.heading+=angleDiff(desired,f.heading)*.018*delta;
+    const wander=Math.sin(now*.0017+f.phase)*.42;
+    const speed=(.085+Math.min(1,Math.hypot(dx,dy)/180)*.16)*creatureTravelScale();
+    f.velocityX+=(Math.cos(f.heading+wander)*speed-f.velocityX)*.045*delta;
+    f.velocityY+=(Math.sin(f.heading+wander)*speed-f.velocityY)*.045*delta;
+    f.view.x+=f.velocityX*delta;f.view.y+=f.velocityY*delta;
+    f.view.rotation=Math.atan2(f.velocityY,f.velocityX)+Math.PI/2;
+    const wingBeat=now*.075+f.phase,spread=.12+.88*Math.abs(Math.sin(wingBeat));
+    f.wings.forEach(wing=>{
+      wing.view.rotation=wing.side*(.12+spread*.34);
+      wing.view.scale.y=wing.baseScale*(.22+spread*.78);
+      wing.view.alpha=.22+spread*.42;
+    });
+    // Match the supplied live-firefly reference: the lantern warms gradually,
+    // reaches a short white-hot peak, then trails off into a soft afterglow.
+    const cycle=(now*f.flashRate+f.phase/(Math.PI*2))%1;
+    const rise=smoothstep(.08,.24,cycle),decay=1-smoothstep(.38,.76,cycle);
+    const livingFlicker=.94+Math.sin(now*.019+f.phase)*.035+Math.sin(now*.041+f.phase*1.7)*.025;
+    const flash=Math.max(0,Math.min(1,rise*decay*livingFlicker));
+    const duskVisibility=currentTimeOfDay==='night' ? 1 : currentTimeOfDay==='evening' ? .86 : .04;
+    // The beetle remains visible; only its emitted light fades in and out.
+    f.view.alpha=.9;
+    f.glow.alpha=duskVisibility*flash*.9;
+    f.glow.scale.set(.72+flash*.72);
+    f.view.scale.set(f.baseScale*(.96+flash*.04));
+  });
   if(creatureVisibility.hummingbirds)hummingbirds.forEach(b=>{
     if(focusedCreature?.view===b.view||returningCreature?.view===b.view)return;
     b.timer-=delta;
@@ -3320,16 +3466,3 @@ app.ticker.add(ticker=>{
   }
   recordDiagnostics(now,diagnosticsWaterMs,diagnosticsCreatureMs);
 });
-
-if(import.meta.env.PROD&&'serviceWorker' in navigator){
-  const registerPondWorker=()=>{
-    const register=()=>navigator.serviceWorker
-      .register(new URL('sw.js',document.baseURI),{scope:'./'})
-      .then(registration=>startupLog('Repeat-visit cache ready',registration.scope))
-      .catch(error=>console.warn('[KOI CACHE] Service worker registration failed',error));
-    if('requestIdleCallback' in window)requestIdleCallback(register,{timeout:4000});
-    else setTimeout(register,1200);
-  };
-  if(document.readyState==='complete')registerPondWorker();
-  else window.addEventListener('load',registerPondWorker,{once:true});
-}
