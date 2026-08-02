@@ -506,6 +506,10 @@ function setRainEnabled(enabled,{manual=false,weatherLabel=''}={}){
         ? `A ${character} sleeping inside a warmly lit tent beside the koi pond`
         : rainEnabled
         ? `A ${character} sitting beside the rainy koi pond in a raincoat and holding an umbrella`
+        : currentTimeOfDay==='morning'
+        ? `A ${character} exercising beside the koi pond in the morning`
+        : currentTimeOfDay==='afternoon'
+        ? `A ${character} reading a book beside the koi pond in the afternoon`
         : `A ${character} sitting beside the koi pond and drinking bubble tea`
     );
   }
@@ -719,6 +723,10 @@ rootStyle.setProperty('--watcher-boy-rain',`url("${assetPath('pond-boy-rain-shee
 rootStyle.setProperty('--watcher-girl-rain',`url("${assetPath('pond-girl-rain-sheet.png')}")`);
 rootStyle.setProperty('--watcher-boy-tent',`url("${assetPath('pond-boy-tent-sheet-aligned.png')}")`);
 rootStyle.setProperty('--watcher-girl-tent',`url("${assetPath('pond-girl-tent-sheet-aligned.png')}")`);
+rootStyle.setProperty('--watcher-boy-exercise',`url("${assetPath('pond-boy-exercise-sheet.webp')}")`);
+rootStyle.setProperty('--watcher-girl-exercise',`url("${assetPath('pond-girl-exercise-sheet.webp')}")`);
+rootStyle.setProperty('--watcher-boy-reading',`url("${assetPath('pond-boy-reading-sheet.webp')}")`);
+rootStyle.setProperty('--watcher-girl-reading',`url("${assetPath('pond-girl-reading-sheet.webp')}")`);
 document.querySelectorAll('[data-pond-asset]').forEach(image=>{
   image.src=assetPath(image.dataset.pondAsset);
 });
@@ -2571,6 +2579,10 @@ async function setTimeOfDay(time){
         ? `A ${character} sleeping inside a warmly lit tent beside the koi pond`
         : rainEnabled
           ? `A ${character} sitting beside the rainy koi pond in a raincoat and holding an umbrella`
+          : time==='morning'
+            ? `A ${character} exercising beside the koi pond in the morning`
+          : time==='afternoon'
+            ? `A ${character} reading a book beside the koi pond in the afternoon`
           : `A ${character} sitting beside the koi pond and drinking bubble tea`);
     }
     timeButtons.forEach(button=>{
@@ -2608,6 +2620,10 @@ characterToggle?.addEventListener('click',()=>{
       ? `A ${next} sleeping inside a warmly lit tent beside the koi pond`
       : rainEnabled
       ? `A ${next} sitting beside the rainy koi pond in a raincoat and holding an umbrella`
+      : currentTimeOfDay==='morning'
+      ? `A ${next} exercising beside the koi pond in the morning`
+      : currentTimeOfDay==='afternoon'
+      ? `A ${next} reading a book beside the koi pond in the afternoon`
       : `A ${next} sitting beside the koi pond and drinking bubble tea`
   );
   characterToggle.querySelector('strong').textContent=next.toUpperCase();
@@ -2635,18 +2651,35 @@ const rainWatcherCycle=[
 const nightWatcherCycle=[
   {frame:0,hold:6000,rest:true}
 ];
+const exerciseWatcherCycle=[
+  {frame:0,hold:900,rest:true},
+  {frame:1,hold:420},
+  {frame:2,hold:850},
+  {frame:3,hold:950},
+  {frame:4,hold:420},
+  {frame:5,hold:1100,rest:true}
+];
+const readingWatcherCycle=[
+  {frame:0,hold:1800,rest:true},
+  {frame:1,hold:900,rest:true},
+  {frame:2,hold:360},
+  {frame:3,hold:420},
+  {frame:4,hold:1100,rest:true},
+  {frame:5,hold:1700,rest:true}
+];
 let watcherStep=0;
 let watcherWasRaining=rainEnabled;
-let watcherWasNight=currentTimeOfDay==='night';
+let watcherPreviousMode=rainEnabled?'rain':currentTimeOfDay;
 function advanceWatcher(){
   if(!watcherFrames.length)return;
   const night=currentTimeOfDay==='night';
-  if(watcherWasRaining!==rainEnabled||watcherWasNight!==night){
+  const mode=rainEnabled?'rain':currentTimeOfDay;
+  if(watcherWasRaining!==rainEnabled||watcherPreviousMode!==mode){
     watcherStep=0;
     watcherWasRaining=rainEnabled;
-    watcherWasNight=night;
+    watcherPreviousMode=mode;
   }
-  const cycle=night?nightWatcherCycle:rainEnabled?rainWatcherCycle:watcherCycle;
+  const cycle=night?nightWatcherCycle:rainEnabled?rainWatcherCycle:currentTimeOfDay==='morning'?exerciseWatcherCycle:currentTimeOfDay==='afternoon'?readingWatcherCycle:watcherCycle;
   const pose=cycle[watcherStep];
   watcherRoot?.classList.toggle('is-sipping',!pose.rest);
   if(watcherFrame)watcherFrame.className=`watcher-frame frame-${pose.frame+1} is-active`;

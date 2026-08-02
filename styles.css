@@ -8,6 +8,10 @@
   --watcher-girl-sip: none;
   --watcher-boy-rain: none;
   --watcher-girl-rain: none;
+  --watcher-boy-exercise: none;
+  --watcher-girl-exercise: none;
+  --watcher-boy-reading: none;
+  --watcher-girl-reading: none;
   --pond-evening-art: none;
   --pond-morning-art: none;
   --pond-afternoon-art: none;
@@ -269,11 +273,16 @@ h1 em { color: #b7ae8c; font-weight: 400; }
 @keyframes info-in { from { opacity:0; transform:translate(-50%,10px) scale(.98); } to { opacity:1; transform:translateX(-50%); } }
 
 .pond-watcher { position:fixed; z-index:3; left:-12px; bottom:-8px; width:clamp(190px,20vw,300px); aspect-ratio:1; pointer-events:none; user-select:none; transform-origin:50% 92%; animation:watcher-presence 5.8s ease-in-out infinite; }
+html[data-time="morning"] body:not(.is-raining) .pond-watcher { bottom:clamp(14px,2.2vh,26px); }
 .pond-watcher.is-sipping { animation-play-state:paused; }
 body.is-raining .pond-watcher { animation:none; }
 .watcher-sprite { position:absolute; z-index:2; inset:0; filter:sepia(.07) saturate(.84) brightness(.94) contrast(.97) drop-shadow(0 10px 13px rgba(39,25,17,.18)); }
 .watcher-frame { position:absolute; inset:0; display:block; opacity:1; background-image:var(--watcher-boy-sip); background-repeat:no-repeat; background-size:300% 200%; transform-origin:50% 88%; }
 .pond-watcher[data-character="girl"] .watcher-frame { background-image:var(--watcher-girl-sip); }
+html[data-time="morning"] .pond-watcher[data-character="boy"] .watcher-frame { background-image:var(--watcher-boy-exercise); }
+html[data-time="morning"] .pond-watcher[data-character="girl"] .watcher-frame { background-image:var(--watcher-girl-exercise); }
+html[data-time="afternoon"] .pond-watcher[data-character="boy"] .watcher-frame { background-image:var(--watcher-boy-reading); }
+html[data-time="afternoon"] .pond-watcher[data-character="girl"] .watcher-frame { background-image:var(--watcher-girl-reading); }
 body.is-raining .pond-watcher[data-character="boy"] .watcher-frame { background-image:var(--watcher-boy-rain); }
 body.is-raining .pond-watcher[data-character="girl"] .watcher-frame { background-image:var(--watcher-girl-rain); }
 html[data-time="night"] .pond-watcher[data-character="boy"] .watcher-frame { background-image:var(--watcher-boy-tent); }
