@@ -19,10 +19,12 @@ import whereSilentColorsDrownUrl from './assets/Where_Silent_Colors_Drown.mp3';
 
 const pondAssetUrl=name=>{
   const formattedName=name.replace(/\.(?:png|webp)$/i,`.${pondAssetFormat}`);
-  const url=bundledAssets[`./assets/${formattedName}`];
+  const entry=Object.entries(bundledAssets).find(([assetPath])=>assetPath.endsWith(`/${formattedName}`));
+  const url=entry?.[1];
   if(!url)throw new Error(`Asset is missing from the Vite bundle: ${name}`);
   return url;
 };
+
 
 const startupStartedAt=performance.now();
 let startupStep=0;
