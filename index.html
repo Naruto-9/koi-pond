@@ -300,25 +300,31 @@
     <div class="grain"></div>
 
     <script>
-      (()=>{
-        if(!('serviceWorker' in navigator))return;
-        if(location.hostname==='localhost'||location.hostname==='127.0.0.1')return;
-        const recoveryKey='koi-garden-stale-asset-reload';
-        navigator.serviceWorker.addEventListener('message',event=>{
-          if(event.data?.type!=='POND_ASSET_STALE')return;
-          try{
-            if(sessionStorage.getItem(recoveryKey))return;
-            sessionStorage.setItem(recoveryKey,'1');
-          }catch{return;}
-          location.reload();
-        });
-        navigator.serviceWorker.register(new URL('sw.js',document.baseURI),{
-          scope:'./',
-          updateViaCache:'none'
-        }).then(registration=>registration.update()).catch(error=>{
-          console.warn('[KOI CACHE] Service worker registration failed',error);
-        });
-      })();
+      // One-way migration for visitors who used a preference-saving release.
+      // Current and future releases do not persist pond controls.
+      try { localStorage.removeItem('koi-garden-preferences-v1'); } catch {}
+
+      // One-way cleanup for visitors who used a service-worker release.
+      // No replacement worker or application cache is created.
+      if ('serviceWorker' in navigator) {
+        const appScope = new URL('./', document.baseURI).href;
+        navigator.serviceWorker.getRegistrations()
+          .then(registrations => Promise.all(
+            registrations
+              .filter(registration => registration.scope === appScope)
+              .map(registration => registration.unregister())
+          ))
+          .catch(() => {});
+      }
+      if ('caches' in window) {
+        caches.keys()
+          .then(names => Promise.all(
+            names
+              .filter(name => name.startsWith('koi-garden-static-'))
+              .map(name => caches.delete(name))
+          ))
+          .catch(() => {});
+      }
     </script>
     <script type="module" src="/pond.js"></script>
   </body>

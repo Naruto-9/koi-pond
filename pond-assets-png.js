@@ -13,6 +13,8 @@ export const bundledAssets=import.meta.glob([
   './assets/pond-girl-sip-sheet-aligned.png',
   './assets/pond-boy-rain-sheet.png',
   './assets/pond-girl-rain-sheet.png',
+  './assets/pond-boy-tent-sheet-aligned.png',
+  './assets/pond-girl-tent-sheet-aligned.png',
   './assets/*-artwork.png',
   './assets/cardinal-flower.png',
   './assets/canna-lily.png',
