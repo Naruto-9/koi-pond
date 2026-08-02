@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "pages": [
+    "daily-characters.webp"
+  ],
+  "frames": {
+    "pond-boy-exercise-sheet.webp": {
+      "page": "daily-characters.webp",
+      "x": 0,
+      "y": 0,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-boy-reading-sheet.webp": {
+      "page": "daily-characters.webp",
+      "x": 1538,
+      "y": 0,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-girl-exercise-sheet.webp": {
+      "page": "daily-characters.webp",
+      "x": 0,
+      "y": 1026,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-girl-reading-sheet.webp": {
+      "page": "daily-characters.webp",
+      "x": 1538,
+      "y": 1026,
+      "width": 1536,
+      "height": 1024
+    }
+  }
+}
