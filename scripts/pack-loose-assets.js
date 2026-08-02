@@ -11,6 +11,7 @@ const padding=2;
 const groups=[
   {name:'backgrounds',match:/^(?:pond-water.*|koi-garden-splash.*)\.webp$/},
   {name:'character-sheets',match:/^(?:rabbit-sheet-clean|pond-(?:boy|girl)-(?:sip-sheet-aligned|rain-sheet|tent-sheet-aligned))\.webp$/},
+  {name:'daily-characters',match:/^pond-(?:boy|girl)-(?:exercise|reading)-sheet\.webp$/},
   {name:'ui-art',match:/^(?:koi-tancho-cropped|pellet-1|food-.+|.+-artwork)\.webp$/}
 ];
 
