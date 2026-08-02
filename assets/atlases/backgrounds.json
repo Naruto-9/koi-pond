@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "pages": [
+    "backgrounds-1.webp",
+    "backgrounds-2.webp"
+  ],
+  "frames": {
+    "koi-garden-splash-mobile-with-logo.webp": {
+      "page": "backgrounds-1.webp",
+      "x": 0,
+      "y": 0,
+      "width": 941,
+      "height": 1672
+    },
+    "pond-water-mobile-afternoon.webp": {
+      "page": "backgrounds-1.webp",
+      "x": 943,
+      "y": 0,
+      "width": 941,
+      "height": 1672
+    },
+    "pond-water-mobile-morning.webp": {
+      "page": "backgrounds-1.webp",
+      "x": 1886,
+      "y": 0,
+      "width": 941,
+      "height": 1672
+    },
+    "pond-water-mobile-night.webp": {
+      "page": "backgrounds-1.webp",
+      "x": 2829,
+      "y": 0,
+      "width": 941,
+      "height": 1672
+    },
+    "pond-water-mobile.webp": {
+      "page": "backgrounds-1.webp",
+      "x": 0,
+      "y": 1674,
+      "width": 941,
+      "height": 1672
+    },
+    "pond-water-afternoon.webp": {
+      "page": "backgrounds-1.webp",
+      "x": 943,
+      "y": 1674,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-water-morning.webp": {
+      "page": "backgrounds-1.webp",
+      "x": 2481,
+      "y": 1674,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-water-night.webp": {
+      "page": "backgrounds-2.webp",
+      "x": 0,
+      "y": 0,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-water.webp": {
+      "page": "backgrounds-2.webp",
+      "x": 1538,
+      "y": 0,
+      "width": 1536,
+      "height": 1024
+    },
+    "koi-garden-splash-with-logo.webp": {
+      "page": "backgrounds-2.webp",
+      "x": 0,
+      "y": 1026,
+      "width": 1672,
+      "height": 941
+    }
+  }
+}

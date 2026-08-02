@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "pages": [
+    "flora.webp"
+  ],
+  "frames": {
+    "canna-lily.png": {
+      "page": "flora.webp",
+      "x": 0,
+      "y": 0,
+      "width": 1122,
+      "height": 1402
+    },
+    "cardinal-flower.png": {
+      "page": "flora.webp",
+      "x": 1124,
+      "y": 0,
+      "width": 1149,
+      "height": 1369
+    },
+    "water-iris.png": {
+      "page": "flora.webp",
+      "x": 2275,
+      "y": 0,
+      "width": 1183,
+      "height": 1329
+    },
+    "red-salvia.png": {
+      "page": "flora.webp",
+      "x": 0,
+      "y": 1404,
+      "width": 1402,
+      "height": 1122
+    },
+    "lotus-leaf-cropped.png": {
+      "page": "flora.webp",
+      "x": 1404,
+      "y": 1404,
+      "width": 1060,
+      "height": 1074
+    },
+    "lotus-flower-cropped.png": {
+      "page": "flora.webp",
+      "x": 2466,
+      "y": 1404,
+      "width": 1069,
+      "height": 1059
+    }
+  }
+}

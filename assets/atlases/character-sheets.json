@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "pages": [
+    "character-sheets.webp"
+  ],
+  "frames": {
+    "pond-boy-rain-sheet.webp": {
+      "page": "character-sheets.webp",
+      "x": 0,
+      "y": 0,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-boy-sip-sheet-aligned.webp": {
+      "page": "character-sheets.webp",
+      "x": 1538,
+      "y": 0,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-boy-tent-sheet-aligned.webp": {
+      "page": "character-sheets.webp",
+      "x": 0,
+      "y": 1026,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-girl-rain-sheet.webp": {
+      "page": "character-sheets.webp",
+      "x": 1538,
+      "y": 1026,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-girl-sip-sheet-aligned.webp": {
+      "page": "character-sheets.webp",
+      "x": 0,
+      "y": 2052,
+      "width": 1536,
+      "height": 1024
+    },
+    "pond-girl-tent-sheet-aligned.webp": {
+      "page": "character-sheets.webp",
+      "x": 1538,
+      "y": 2052,
+      "width": 1536,
+      "height": 1024
+    },
+    "rabbit-sheet-clean.webp": {
+      "page": "character-sheets.webp",
+      "x": 0,
+      "y": 3078,
+      "width": 1717,
+      "height": 916
+    }
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "pages": [
+    "pond-items.webp"
+  ],
+  "frames": {
+    "frog-swim-frame-8.png": {
+      "page": "pond-items.webp",
+      "x": 0,
+      "y": 0,
+      "width": 445,
+      "height": 444
+    },
+    "frog-swim-frame-5.png": {
+      "page": "pond-items.webp",
+      "x": 447,
+      "y": 0,
+      "width": 443,
+      "height": 444
+    },
+    "frog-swim-frame-6.png": {
+      "page": "pond-items.webp",
+      "x": 892,
+      "y": 0,
+      "width": 443,
+      "height": 444
+    },
+    "frog-swim-frame-7.png": {
+      "page": "pond-items.webp",
+      "x": 1337,
+      "y": 0,
+      "width": 443,
+      "height": 444
+    },
+    "frog-swim-frame-4.png": {
+      "page": "pond-items.webp",
+      "x": 1782,
+      "y": 0,
+      "width": 445,
+      "height": 443
+    },
+    "frog-swim-frame-1.png": {
+      "page": "pond-items.webp",
+      "x": 2229,
+      "y": 0,
+      "width": 443,
+      "height": 443
+    },
+    "frog-swim-frame-2.png": {
+      "page": "pond-items.webp",
+      "x": 2674,
+      "y": 0,
+      "width": 443,
+      "height": 443
+    },
+    "frog-swim-frame-3.png": {
+      "page": "pond-items.webp",
+      "x": 3119,
+      "y": 0,
+      "width": 443,
+      "height": 443
+    },
+    "pebble-1.png": {
+      "page": "pond-items.webp",
+      "x": 3564,
+      "y": 0,
+      "width": 230,
+      "height": 269
+    },
+    "pebble-6.png": {
+      "page": "pond-items.webp",
+      "x": 3796,
+      "y": 0,
+      "width": 216,
+      "height": 267
+    },
+    "pebble-2.png": {
+      "page": "pond-items.webp",
+      "x": 0,
+      "y": 446,
+      "width": 230,
+      "height": 249
+    },
+    "pebble-4.png": {
+      "page": "pond-items.webp",
+      "x": 232,
+      "y": 446,
+      "width": 216,
+      "height": 248
+    },
+    "pebble-3.png": {
+      "page": "pond-items.webp",
+      "x": 450,
+      "y": 446,
+      "width": 232,
+      "height": 238
+    },
+    "pebble-5.png": {
+      "page": "pond-items.webp",
+      "x": 684,
+      "y": 446,
+      "width": 245,
+      "height": 224
+    },
+    "pellet-2.png": {
+      "page": "pond-items.webp",
+      "x": 931,
+      "y": 446,
+      "width": 210,
+      "height": 179
+    },
+    "pellet-8.png": {
+      "page": "pond-items.webp",
+      "x": 1143,
+      "y": 446,
+      "width": 219,
+      "height": 173
+    },
+    "pellet-3.png": {
+      "page": "pond-items.webp",
+      "x": 1364,
+      "y": 446,
+      "width": 205,
+      "height": 173
+    },
+    "pellet-10.png": {
+      "page": "pond-items.webp",
+      "x": 1571,
+      "y": 446,
+      "width": 200,
+      "height": 173
+    },
+    "pellet-5.png": {
+      "page": "pond-items.webp",
+      "x": 1773,
+      "y": 446,
+      "width": 211,
+      "height": 168
+    },
+    "pellet-11.png": {
+      "page": "pond-items.webp",
+      "x": 1986,
+      "y": 446,
+      "width": 212,
+      "height": 164
+    },
+    "pellet-9.png": {
+      "page": "pond-items.webp",
+      "x": 2200,
+      "y": 446,
+      "width": 212,
+      "height": 162
+    },
+    "pellet-6.png": {
+      "page": "pond-items.webp",
+      "x": 2414,
+      "y": 446,
+      "width": 215,
+      "height": 159
+    },
+    "pellet-12.png": {
+      "page": "pond-items.webp",
+      "x": 2631,
+      "y": 446,
+      "width": 212,
+      "height": 157
+    },
+    "pellet-4.png": {
+      "page": "pond-items.webp",
+      "x": 2845,
+      "y": 446,
+      "width": 227,
+      "height": 152
+    },
+    "pellet-7.png": {
+      "page": "pond-items.webp",
+      "x": 3074,
+      "y": 446,
+      "width": 224,
+      "height": 133
+    }
+  }
+}

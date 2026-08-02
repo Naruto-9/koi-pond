@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "pages": [
+    "ui-art.webp"
+  ],
+  "frames": {
+    "Beneath_the_Glass-artwork.webp": {
+      "page": "ui-art.webp",
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "The_Weight_of_Amber-artwork.webp": {
+      "page": "ui-art.webp",
+      "x": 1026,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "Where_Silent_Colors_Drown-artwork.webp": {
+      "page": "ui-art.webp",
+      "x": 2052,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "koi-tancho-cropped.webp": {
+      "page": "ui-art.webp",
+      "x": 0,
+      "y": 1026,
+      "width": 1410,
+      "height": 521
+    },
+    "food-rabbit-carrot.webp": {
+      "page": "ui-art.webp",
+      "x": 1412,
+      "y": 1026,
+      "width": 251,
+      "height": 276
+    },
+    "food-turtle-lettuce.webp": {
+      "page": "ui-art.webp",
+      "x": 1665,
+      "y": 1026,
+      "width": 241,
+      "height": 276
+    },
+    "food-frog-cricket.webp": {
+      "page": "ui-art.webp",
+      "x": 1908,
+      "y": 1026,
+      "width": 276,
+      "height": 249
+    },
+    "pellet-1.webp": {
+      "page": "ui-art.webp",
+      "x": 2186,
+      "y": 1026,
+      "width": 226,
+      "height": 177
+    }
+  }
+}

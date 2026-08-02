@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "pages": [
+    "koi-1.webp",
+    "koi-2.webp"
+  ],
+  "frames": {
+    "koi-asagi-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 0,
+      "y": 0,
+      "width": 1643,
+      "height": 606
+    },
+    "koi-shiro-utsuri-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 1645,
+      "y": 0,
+      "width": 1582,
+      "height": 604
+    },
+    "koi-ki-utsuri-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 0,
+      "y": 608,
+      "width": 1591,
+      "height": 594
+    },
+    "koi-sanke-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 1593,
+      "y": 608,
+      "width": 1502,
+      "height": 577
+    },
+    "koi-ogon-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 0,
+      "y": 1204,
+      "width": 1505,
+      "height": 569
+    },
+    "koi-shusui-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 1507,
+      "y": 1204,
+      "width": 1500,
+      "height": 560
+    },
+    "koi-kujaku-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 0,
+      "y": 1775,
+      "width": 1375,
+      "height": 560
+    },
+    "koi-goshiki-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 1377,
+      "y": 1775,
+      "width": 1390,
+      "height": 549
+    },
+    "koi-goromo-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 0,
+      "y": 2337,
+      "width": 1439,
+      "height": 547
+    },
+    "koi-hariwake-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 1441,
+      "y": 2337,
+      "width": 1376,
+      "height": 538
+    },
+    "koi-showa-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 0,
+      "y": 2886,
+      "width": 1425,
+      "height": 529
+    },
+    "koi-matsuba-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 1427,
+      "y": 2886,
+      "width": 1429,
+      "height": 520
+    },
+    "koi-soragoi-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 0,
+      "y": 3417,
+      "width": 1376,
+      "height": 518
+    },
+    "koi-bekko-cropped.png": {
+      "page": "koi-1.webp",
+      "x": 1378,
+      "y": 3417,
+      "width": 1491,
+      "height": 517
+    },
+    "koi-kohaku-cropped.png": {
+      "page": "koi-2.webp",
+      "x": 0,
+      "y": 0,
+      "width": 1386,
+      "height": 505
+    },
+    "koi-ochiba-cropped.png": {
+      "page": "koi-2.webp",
+      "x": 1388,
+      "y": 0,
+      "width": 1414,
+      "height": 500
+    },
+    "koi-chagoi-cropped.png": {
+      "page": "koi-2.webp",
+      "x": 0,
+      "y": 507,
+      "width": 1402,
+      "height": 487
+    },
+    "koi-platinum-ogon-cropped.png": {
+      "page": "koi-2.webp",
+      "x": 1404,
+      "y": 507,
+      "width": 1431,
+      "height": 478
+    },
+    "koi-hi-utsuri-cropped.png": {
+      "page": "koi-2.webp",
+      "x": 0,
+      "y": 996,
+      "width": 1412,
+      "height": 477
+    }
+  }
+}
