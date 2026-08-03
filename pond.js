@@ -631,7 +631,7 @@ function updateRain(delta,now){
   updateRainImpacts(delta);
 }
 const creatureVisibility={
-  koi:true,turtles:true,frogs:true,dragonflies:true,fireflies:true,hummingbirds:true,rabbits:true,plants:true
+  koi:true,turtles:true,frogs:true,dragonflies:true,fireflies:true,hummingbirds:true,bees:true,songbirds:true,butterflies:true,ducks:true,rabbits:true,plants:true
 };
 let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
@@ -800,9 +800,17 @@ let dragonflyTexture=null;
 let fireflyTexture=null;
 let fireflyGlowTexture=null;
 let hummingbirdTexture=null;
+let honeybeeTexture=null;
+let songbirdTexture=null;
+let butterflyTexture=null;
+let duckTexture=null;
 let rabbitSheetTexture=null;
 let bankPlantTextures=[];
 let rabbitFrames=[];
+let songbirdFrames=[];
+let hummingbirdFrames=[];
+let butterflyFrames=[];
+let duckFrames=[];
 let decorativeAssetsReady=false;
 let decorativeAssetsPromise=null;
 const pelletTextures=Array.from({length:12},(_,index)=>makePelletTexture(index));
@@ -876,13 +884,15 @@ async function loadDeferredFrogFrames(){
   });
   startupLog('Deferred frog animation frames loaded',{count:textures.length});
 }
-const turtles=[],frogs=[],floaters=[],dragonflies=[],fireflies=[],hummingbirds=[],rabbits=[],nectarTargets=[];
+const turtles=[],frogs=[],floaters=[],dragonflies=[],fireflies=[],hummingbirds=[],bees=[],songbirds=[],butterflies=[],ducks=[],rabbits=[],nectarTargets=[];
 
 function chooseFireflyWaypoint(){
   const occupied=[
     ...fish.map(creature=>creature.view),...turtles.map(creature=>creature.view),
     ...frogs.map(creature=>creature.view),...dragonflies.map(creature=>creature.view),
-    ...hummingbirds.map(creature=>creature.view),...rabbits.map(creature=>creature.view),
+    ...hummingbirds.map(creature=>creature.view),...bees.map(creature=>creature.view),
+    ...songbirds.map(creature=>creature.view),...butterflies.map(creature=>creature.view),
+    ...ducks.map(creature=>creature.view),...rabbits.map(creature=>creature.view),
     ...fireflies.map(creature=>creature.view)
   ].filter(view=>view?.visible!==false);
   let best={x:app.screen.width*.5,y:app.screen.height*.5,score:-Infinity};
@@ -930,20 +940,28 @@ async function loadDecorativeAssets(){
     Promise.all([1,2,3,4,5,6].map(i=>loadPondAsset(`pebble-${i}.png`))),
     loadPondAsset('dragonfly.png'),
     loadPondAsset('firefly-realistic.png'),
-    loadPondAsset('hummingbird.png'),
+    loadPondAsset('hummingbird-side-sheet.webp'),
+    loadPondAsset('honeybee.webp'),
+    loadPondAsset('olive-backed-sunbird.webp'),
+    loadPondAsset('monarch-butterfly-sheet.webp'),
+    loadPondAsset('mallard-duck-actions-sheet.webp'),
     loadPondAsset('rabbit-sheet-clean.png'),
     Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset))
   ]).then(async textures=>{
     [
       frogTexture,turtleTexture,lotusFlowerTexture,lotusLeafTexture,
-      pebbleTextures,dragonflyTexture,fireflyTexture,hummingbirdTexture,rabbitSheetTexture,bankPlantTextures
+      pebbleTextures,dragonflyTexture,fireflyTexture,hummingbirdTexture,honeybeeTexture,songbirdTexture,butterflyTexture,duckTexture,rabbitSheetTexture,bankPlantTextures
     ]=textures;
     frogSwimTextures=Array(8).fill(frogTexture);
     rabbitFrames=makeRabbitFrames();
+    songbirdFrames=makeSongbirdFrames();
+    hummingbirdFrames=makeHummingbirdFrames();
+    butterflyFrames=makeButterflyFrames();
+    duckFrames=makeDuckFrames();
     await prepareGpuResources([
       frogTexture,turtleTexture,lotusFlowerTexture,lotusLeafTexture,
-      ...pebbleTextures,dragonflyTexture,fireflyTexture,hummingbirdTexture,rabbitSheetTexture,
-      ...bankPlantTextures,...rabbitFrames
+      ...pebbleTextures,dragonflyTexture,fireflyTexture,hummingbirdTexture,honeybeeTexture,songbirdTexture,rabbitSheetTexture,
+      ...bankPlantTextures,...rabbitFrames,...songbirdFrames,...hummingbirdFrames,...butterflyFrames,...duckFrames
     ]);
     decorativeAssetsReady=true;
     buildPondDecor();
@@ -1028,31 +1046,70 @@ function makeFirefly(){
   return {root,wings,glow};
 }
 
-function makeHummingbird(){
-  const source=hummingbirdTexture.source,img=source.resource,w=source.width,h=source.height;
-  const root=new Container(),scale=92/(h*.72);
+function makeBee(){
+  const source=honeybeeTexture.source,img=source.resource,w=source.width,h=source.height;
+  const root=new Container(),scale=31/(w*.70);
   const cut=(x,y,cw,ch)=>{
-    const pad=5,c=document.createElement('canvas');c.width=Math.ceil(cw)+pad*2;c.height=Math.ceil(ch)+pad*2;
+    const pad=4,c=document.createElement('canvas');c.width=Math.ceil(cw)+pad*2;c.height=Math.ceil(ch)+pad*2;
     c.getContext('2d').drawImage(img,x,y,cw,ch,pad,pad,cw,ch);
-    return {texture:Texture.from(c),pad,x,y};
+    return {texture:Texture.from(c),pad};
   };
-  const bodyPart=cut(w*.385,h*.015,w*.23,h*.72);
-  const body=new Sprite(bodyPart.texture);
-  body.pivot.set(w*.5-bodyPart.x+bodyPart.pad,h*.36-bodyPart.y+bodyPart.pad);
-  body.scale.set(scale);root.addChild(body);
-  const wingSpecs=[
-    [w*.035,h*.66,w*.37,h*.30,-1],
-    [w*.595,h*.66,w*.37,h*.30,1]
-  ];
+  const bodyPart=cut(w*.15,h*.10,w*.76,h*.43),body=new Sprite(bodyPart.texture);
+  body.anchor.set(.5);body.scale.set(scale);root.addChild(body);
+  const wingSpecs=[[w*.045,h*.57,w*.43,h*.29,-1],[w*.53,h*.57,w*.43,h*.29,1]];
   const wings=wingSpecs.map(spec=>{
     const part=cut(spec[0],spec[1],spec[2],spec[3]),wing=new Sprite(part.texture);
     const rootX=spec[4]<0?part.texture.width-part.pad:part.pad;
-    wing.pivot.set(rootX,part.texture.height*.5);
-    wing.position.set(spec[4]*8,0);wing.scale.set(scale);wing.alpha=.82;
+    wing.pivot.set(rootX,part.texture.height*.53);
+    wing.position.set(-2,-4);wing.scale.set(scale*.72);wing.alpha=.68;
     root.addChildAt(wing,0);
-    return {view:wing,side:spec[4],baseScale:scale};
+    return {view:wing,side:spec[4],baseScale:scale*.72};
   });
   return {root,wings};
+}
+
+function makeButterflyFrames(){
+  const source=butterflyTexture.source,img=source.resource,cellW=source.width/5;
+  const cropY=source.height*.14,cropH=source.height*.64;
+  return Array.from({length:5},(_,index)=>{
+    const pad=3,c=document.createElement('canvas');
+    c.width=Math.ceil(cellW)+pad*2;c.height=Math.ceil(cropH)+pad*2;
+    c.getContext('2d').drawImage(img,index*cellW,cropY,cellW,cropH,pad,pad,cellW,cropH);
+    return Texture.from(c);
+  });
+}
+
+function makeDuckFrames(){
+  const source=duckTexture.source,img=source.resource,cellW=source.width/6,cellH=source.height/2;
+  const cropH=cellH*.76;
+  return Array.from({length:12},(_,index)=>{
+    // Inset each source cell so the generated layout guides never enter a frame.
+    const column=index%6,row=Math.floor(index/6),inset=4,pad=3,drawW=cellW-inset*2;
+    // Keep both animation rows on the same painted waterline. A different crop
+    // origin for the stretch row makes the body jump when texture 11 returns to 0.
+    const cropY=row*cellH+cellH*.10,c=document.createElement('canvas');
+    c.width=Math.ceil(drawW)+pad*2;c.height=Math.ceil(cropH)+pad*2;
+    c.getContext('2d').drawImage(img,column*cellW+inset,cropY,drawW,cropH,pad,pad,drawW,cropH);
+    return Texture.from(c);
+  });
+}
+
+function makeSongbirdFrames(){
+  const source=songbirdTexture.source,img=source.resource,cellW=source.width/5,cellH=source.height;
+  return Array.from({length:5},(_,index)=>{
+    const pad=3,c=document.createElement('canvas');c.width=Math.ceil(cellW)+pad*2;c.height=Math.ceil(cellH)+pad*2;
+    c.getContext('2d').drawImage(img,index*cellW,0,cellW,cellH,pad,pad,cellW,cellH);
+    return Texture.from(c);
+  });
+}
+
+function makeHummingbirdFrames(){
+  const source=hummingbirdTexture.source,img=source.resource,cellW=source.width/5,cellH=source.height;
+  return Array.from({length:5},(_,index)=>{
+    const pad=3,c=document.createElement('canvas');c.width=Math.ceil(cellW)+pad*2;c.height=Math.ceil(cellH)+pad*2;
+    c.getContext('2d').drawImage(img,index*cellW,0,cellW,cellH,pad,pad,cellW,cellH);
+    return Texture.from(c);
+  });
 }
 
 function makeFrog(){
@@ -1198,7 +1255,7 @@ function buildPondDecor(){
   if(returningCreature)finishCreatureReturn();
   if(focusedCreature&&focusedCreature.kind!=='koi')clearCreatureFocus(false);
   animalTreats.splice(0).forEach(treat=>treat.view?.destroy());
-  turtles.length=0;frogs.length=0;floaters.length=0;dragonflies.length=0;fireflies.length=0;hummingbirds.length=0;rabbits.length=0;
+  turtles.length=0;frogs.length=0;floaters.length=0;dragonflies.length=0;fireflies.length=0;hummingbirds.length=0;bees.length=0;songbirds.length=0;butterflies.length=0;ducks.length=0;rabbits.length=0;
   shorelineLayer.removeChildren().forEach(child=>child.destroy());
   bankPlantLayer.removeChildren().forEach(child=>child.destroy());
   nectarTargets.length=0;
@@ -1311,16 +1368,59 @@ function buildPondDecor(){
       velocityX:0,velocityY:0,flashRate:.00021+Math.random()*.00008
     });
   }
-  const hummingbirdBuilt=makeHummingbird(),hummingbirdView=hummingbirdBuilt.root;
+  const hummingbirdView=new Sprite(hummingbirdFrames[0]);hummingbirdView.anchor.set(.5);
+  const hummingbirdWidth=92*mobileContentScale;
+  hummingbirdView.width=hummingbirdWidth;hummingbirdView.height=hummingbirdWidth*(hummingbirdFrames[0].height/hummingbirdFrames[0].width);
   hummingbirdView.position.set(w*(useMobilePond?.80:.84),h*(useMobilePond?.18:.24));
-  hummingbirdView.rotation=-1.15;hummingbirdView.scale.set(mobileContentScale);hummingbirdView.alpha=.94;aerialLayer.addChild(hummingbirdView);
+  hummingbirdView.rotation=-.08;hummingbirdView.alpha=.94;aerialLayer.addChild(hummingbirdView);
   addInspectable(hummingbirdView,'hummingbirds','Ruby-throated Hummingbird','AERIAL BIRD','A hummingbird can hold nearly motionless in the air by sweeping its wings in a rapid figure-eight. It alternates precise hovering with sudden, direct darts between flowers and sheltered perches.');
   hummingbirds.push({
-    view:hummingbirdView,wings:hummingbirdBuilt.wings,baseScale:mobileContentScale,phase:Math.random()*6,
-    heading:hummingbirdView.rotation-Math.PI/2,targetX:w*.70,targetY:h*.27,
+    view:hummingbirdView,frames:hummingbirdFrames,baseScaleX:hummingbirdView.scale.x,baseScaleY:hummingbirdView.scale.y,phase:Math.random()*6,
+    heading:Math.PI,targetX:w*.70,targetY:h*.27,
     mode:'hover',timer:130+Math.random()*120,hoverX:hummingbirdView.x,hoverY:hummingbirdView.y,
-    velocityX:0,velocityY:0
+    velocityX:0,velocityY:0,flapClock:0,facing:-1
   });
+  const beeCount=useMobilePond?3:5;
+  for(let i=0;i<beeCount;i++){
+    const target=nectarTargets[i%nectarTargets.length]||{x:w*.2,y:h*.3};
+    const builtBee=makeBee(),bee=builtBee.root;
+    const beeScale=(useMobilePond?.78:1)*(.86+Math.random()*.22);
+    bee.scale.set(beeScale);
+    bee.position.set(target.x+(Math.random()-.5)*70,target.y-12+(Math.random()-.5)*42);
+    bee.alpha=.94;aerialLayer.addChild(bee);
+    addInspectable(bee,'bees','Honeybee','POLLINATING INSECT','Honeybees begin foraging once the morning warms. By carrying pollen between flowers as they gather nectar, they help the pond garden produce seeds and fruit.');
+    bees.push({view:bee,wings:builtBee.wings,targetX:target.x,targetY:target.y,velocityX:0,velocityY:0,phase:Math.random()*Math.PI*2,timer:45+Math.random()*100,baseScale:beeScale});
+  }
+  const birdPerches=useMobilePond?[[.13,.43],[.84,.72]]:[[.10,.42],[.87,.72]];
+  birdPerches.forEach(([x,y],i)=>{
+    const bird=new Sprite(songbirdFrames[0]);bird.anchor.set(.5,.88);
+    const birdWidth=(useMobilePond?58:76)*mobileContentScale;
+    bird.width=birdWidth;bird.height=birdWidth*(songbirdFrames[0].height/songbirdFrames[0].width);
+    bird.position.set(w*x,h*y);bird.alpha=.95;aerialLayer.addChild(bird);
+    addInspectable(bird,'songbirds','Olive-backed Sunbird','GARDEN SONGBIRD','Olive-backed sunbirds are lively garden visitors with slender curved bills. They are especially active in the cool morning, searching flowers for nectar and foliage for tiny insects.');
+    const nearbyPerches=birdPerches.map(([px,py])=>({x:w*px,y:h*py}));
+    nearbyPerches.push({x:bird.x+(i? -1:1)*w*.08,y:bird.y-h*.025});
+    songbirds.push({view:bird,frames:songbirdFrames,perches:nearbyPerches,perch:i,homeX:bird.x,homeY:bird.y,phase:i*2.7+Math.random(),baseScaleX:bird.scale.x,baseScaleY:bird.scale.y,facing:i?-1:1,mode:'rest',timer:220+Math.random()*260,progress:0,duration:68,flapClock:0});
+  });
+  const butterflyCount=useMobilePond?3:5;
+  for(let i=0;i<butterflyCount;i++){
+    const target=nectarTargets[i%nectarTargets.length]||{x:w*.25,y:h*.3};
+    const view=new Sprite(butterflyFrames[0]);view.anchor.set(.5);
+    const butterflyWidth=(useMobilePond?34:48)*mobileContentScale*(.88+Math.random()*.2);
+    view.width=butterflyWidth;view.height=butterflyWidth*(butterflyFrames[0].height/butterflyFrames[0].width);
+    const baseScaleX=view.scale.x,baseScaleY=view.scale.y;
+    view.position.set(target.x+(Math.random()-.5)*90,target.y+(Math.random()-.5)*55);
+    view.alpha=.94;aerialLayer.addChild(view);
+    addInspectable(view,'butterflies','Monarch Butterfly','AFTERNOON POLLINATOR','Monarch butterflies use strong, rhythmic wingbeats between glides. Their vivid orange panels, black veins and white-spotted borders make them easy to recognize among sunny garden flowers.');
+    butterflies.push({view,frames:butterflyFrames,baseScaleX,baseScaleY,phase:Math.random()*6,flapClock:Math.random()*24,targetX:target.x,targetY:target.y,velocityX:0,velocityY:0,timer:40+Math.random()*120});
+  }
+  const duckStart=constrainToPond(w*(useMobilePond?.58:.62),h*.48,64*mobileContentScale);
+  const duck=new Sprite(duckFrames[0]);duck.anchor.set(.5,.72);
+  const duckWidth=(useMobilePond?88:132)*mobileContentScale;
+  duck.width=duckWidth;duck.height=duckWidth*(duckFrames[0].height/duckFrames[0].width);
+  duck.position.set(duckStart.x,duckStart.y);duck.alpha=.96;decorLayer.addChild(duck);
+  addInspectable(duck,'ducks','Mallard','WILD WATERFOWL','Male mallards are recognized by their glossy green heads, white neck rings and chestnut breasts. Their feet paddle beneath the surface while the body glides smoothly, with brief dabbling dips and feather-stretching displays.');
+  ducks.push({view:duck,frames:duckFrames,baseScaleX:duck.scale.x,baseScaleY:duck.scale.y,facing:1,mode:'swim',timer:180,forageTimer:240+Math.random()*180,stretchTimer:360+Math.random()*240,targetX:w*.72,targetY:h*.54,velocityX:.12,velocityY:0,cruiseSpeed:.38+Math.random()*.14,phase:Math.random()*6,wakeTimer:0,paddleTimer:18+Math.random()*25,paddleSide:Math.random()<.5?-1:1,wakeOffset:duckWidth*.28});
   const rabbit=new Sprite(rabbitFrames[0]);rabbit.anchor.set(.5,.82);
   const rabbitScale=(useMobilePond?.30:.24)*mobileContentScale;
   // The rabbit can explore the full planted lower-right bank. The inner edge
@@ -1362,8 +1462,14 @@ function applyCreatureVisibility(){
   dragonflies.forEach(v=>v.view.visible=creatureVisibility.dragonflies&&!night);
   fireflies.forEach(v=>v.view.visible=creatureVisibility.fireflies&&currentTimeOfDay==='night');
   hummingbirds.forEach(v=>v.view.visible=creatureVisibility.hummingbirds&&!night);
+  const morning=currentTimeOfDay==='morning';
+  bees.forEach(v=>v.view.visible=creatureVisibility.bees&&morning);
+  songbirds.forEach(v=>v.view.visible=creatureVisibility.songbirds&&morning);
+  const afternoon=currentTimeOfDay==='afternoon';
+  butterflies.forEach(v=>v.view.visible=creatureVisibility.butterflies&&afternoon);
+  ducks.forEach(v=>v.view.visible=creatureVisibility.ducks&&afternoon);
   rabbits.forEach(v=>v.view.visible=creatureVisibility.rabbits&&!night);
-  const sleepingOffscreen=night&&['dragonflies','hummingbirds','rabbits'].includes(focusedCreature?.kind);
+  const sleepingOffscreen=(night&&['dragonflies','hummingbirds','rabbits'].includes(focusedCreature?.kind))||(!morning&&['bees','songbirds'].includes(focusedCreature?.kind))||(!afternoon&&['butterflies','ducks'].includes(focusedCreature?.kind));
   if(focusedCreature&&(!creatureVisibility[focusedCreature.kind]||sleepingOffscreen))clearCreatureFocus(false);
 }
 
@@ -2913,8 +3019,8 @@ function loadDiagnostics(){
           koi:fish.length,
           treats:animalTreats.length+food.length,
           wakes:fishWakes.length,
-          rainFx:rainDrops.length+rainImpacts.length,
-          pooled:fishWakePool.length+rainImpactPool.length+pelletPool.length,
+          rainFx:rainEnabled?rainDrops.length+rainImpacts.length:0,
+          pooled:fishWakePool.length+rainImpactPool.length+pelletPool.length+(rainEnabled?0:rainDrops.length),
           renderer:isCanvasRenderer?'CANVAS':'WEBGL',
           resolution:app.renderer.resolution,
           width:app.screen.width,
@@ -3435,18 +3541,153 @@ app.ticker.add(ticker=>{
     }
     const motion=Math.hypot(b.velocityX,b.velocityY);
     if(motion>.08)b.heading+=angleDiff(Math.atan2(b.velocityY,b.velocityX),b.heading)*.08*delta;
-    b.view.rotation=b.heading+Math.PI/2;
-    // Around 50-70 visual beats per second: alternate foreshortening and
-    // translucent feather blur while keeping exactly two physical wings.
-    const beat=now*.105+b.phase,stroke=Math.sin(beat),spread=.22+.78*Math.abs(stroke);
-    b.wings.forEach(wing=>{
-      wing.view.rotation=wing.side*(.18+stroke*.42);
-      wing.view.scale.x=wing.baseScale*(.42+spread*.58);
-      wing.view.scale.y=wing.baseScale*(.72+spread*.28);
-      wing.view.alpha=.34+spread*.55;
-    });
+    b.flapClock+=delta;
+    const feeding=b.mode==='hover'&&!b.leaving&&b.flowerX!==undefined&&Math.hypot(b.flowerX-b.view.x,b.flowerY-b.view.y)<70*mobileContentScale;
+    // Hummingbirds continue powered wingbeats both in transit and while
+    // feeding. Holding a dedicated feeding silhouette makes the bird appear
+    // perched in mid-air, so flower visits use the same complete flap cycle.
+    const flapInterval=b.mode==='dart'?1.65:feeding?2.15:2.5;
+    b.view.texture=b.frames[Math.floor(b.flapClock/flapInterval)%3];
+    if(motion>.08)b.facing=b.velocityX>=0?1:-1;
+    else if(feeding)b.facing=b.flowerX>=b.view.x?1:-1;
+    const flightTilt=feeding?0:Math.max(-.24,Math.min(.24,Math.atan2(b.velocityY,Math.max(.3,Math.abs(b.velocityX)))*.32));
+    b.view.rotation=flightTilt;
     const pitch=Math.min(1,motion/2.5);
-    b.view.scale.set(b.baseScale*(1-pitch*.035),b.baseScale*(1+pitch*.025));
+    b.view.scale.set(Math.abs(b.baseScaleX)*b.facing*(1-pitch*.035),b.baseScaleY*(1+pitch*.025));
+  });
+  if(creatureVisibility.bees&&currentTimeOfDay==='morning')bees.forEach(b=>{
+    if(focusedCreature?.view===b.view||returningCreature?.view===b.view)return;
+    b.timer-=delta;
+    if(b.timer<=0||Math.hypot(b.targetX-b.view.x,b.targetY-b.view.y)<12){
+      const flower=nectarTargets[Math.floor(Math.random()*nectarTargets.length)]||{x:app.screen.width*.2,y:app.screen.height*.3};
+      b.targetX=flower.x+(Math.random()-.5)*34*mobileContentScale;
+      b.targetY=flower.y-8+(Math.random()-.5)*28*mobileContentScale;
+      b.timer=65+Math.random()*130;
+    }
+    const dx=b.targetX-b.view.x,dy=b.targetY-b.view.y,dist=Math.max(1,Math.hypot(dx,dy));
+    const speed=(.34+Math.min(1.15,dist*.018))*creatureTravelScale();
+    b.velocityX+=(dx/dist*speed-b.velocityX)*.09*delta;
+    b.velocityY+=(dy/dist*speed-b.velocityY)*.09*delta;
+    const buzz=now*.018+b.phase;
+    b.view.x+=b.velocityX*delta+Math.sin(buzz*1.7)*.16;
+    b.view.y+=b.velocityY*delta+Math.cos(buzz*2.1)*.2;
+    const facing=b.velocityX>=0?1:-1;
+    b.view.scale.set(b.baseScale*facing,b.baseScale*(1+Math.sin(buzz)*.025));
+    b.view.rotation=Math.max(-.22,Math.min(.22,b.velocityY*.08));
+    const wingStroke=Math.sin(now*.13+b.phase),wingOpen=.18+.82*Math.abs(wingStroke);
+    b.wings.forEach(wing=>{
+      wing.view.rotation=wing.side*(.10+wingStroke*.58);
+      wing.view.scale.set(wing.baseScale*(.42+wingOpen*.58),wing.baseScale*(.24+wingOpen*.76));
+      wing.view.alpha=.30+wingOpen*.48;
+    });
+  });
+  if(creatureVisibility.butterflies&&currentTimeOfDay==='afternoon')butterflies.forEach(b=>{
+    if(focusedCreature?.view===b.view||returningCreature?.view===b.view){
+      b.view.texture=b.frames[0];
+      return;
+    }
+    // Outside the static inspection pose, wingbeats continue independently
+    // of travel and hovering. Every pose has the same duration.
+    b.flapClock+=delta;
+    const flapCycle=[0,1,2,3,4,3,2,1];
+    b.view.texture=b.frames[flapCycle[Math.floor(b.flapClock/2.2)%flapCycle.length]];
+    b.timer-=delta;
+    if(b.timer<=0||Math.hypot(b.targetX-b.view.x,b.targetY-b.view.y)<14){
+      const flower=nectarTargets[Math.floor(Math.random()*nectarTargets.length)]||{x:app.screen.width*.25,y:app.screen.height*.3};
+      b.targetX=flower.x+(Math.random()-.5)*55*mobileContentScale;
+      b.targetY=flower.y-5+(Math.random()-.5)*45*mobileContentScale;
+      b.timer=80+Math.random()*180;
+    }
+    const dx=b.targetX-b.view.x,dy=b.targetY-b.view.y,dist=Math.max(1,Math.hypot(dx,dy));
+    const speed=(.22+Math.min(.82,dist*.012))*creatureTravelScale();
+    b.velocityX+=(dx/dist*speed-b.velocityX)*.055*delta;
+    b.velocityY+=(dy/dist*speed-b.velocityY)*.055*delta;
+    const flutter=now*.014+b.phase;
+    b.view.x+=b.velocityX*delta+Math.sin(flutter*1.8)*.32;
+    b.view.y+=b.velocityY*delta+Math.cos(flutter*1.35)*.38;
+    const facing=b.velocityX>=0?1:-1;b.view.scale.set(Math.abs(b.baseScaleX)*facing,b.baseScaleY);
+    b.view.rotation=Math.max(-.25,Math.min(.25,b.velocityY*.12));
+  });
+  if(creatureVisibility.ducks&&currentTimeOfDay==='afternoon')ducks.forEach(d=>{
+    if(focusedCreature?.view===d.view||returningCreature?.view===d.view)return;
+    d.timer-=delta;d.forageTimer-=delta;d.stretchTimer-=delta;d.wakeTimer-=delta;d.paddleTimer-=delta;
+    if(d.mode==='swim'){
+      if(d.stretchTimer<=0){
+        d.mode='stretch';d.actionClock=0;d.timer=30;d.view.texture=d.frames[6];
+        d.stretchTimer=480+Math.random()*240;
+      }else if(d.forageTimer<=0){
+        d.mode='forage';d.actionClock=0;d.timer=30;d.view.texture=d.frames[0];
+        d.forageTimer=240+Math.random()*180;
+      }
+      const dx=d.targetX-d.view.x,dy=d.targetY-d.view.y,dist=Math.hypot(dx,dy);
+      if(d.mode==='swim'&&(d.timer<=0||dist<28)){
+        let target=null;
+        for(let attempt=0;attempt<20&&!target;attempt++){
+          const candidate={x:app.screen.width*(.12+Math.random()*.76),y:app.screen.height*(.14+Math.random()*.72)};
+          if(insidePond(candidate.x,candidate.y,64*mobileContentScale))target=candidate;
+        }
+        target||=(constrainToPond(app.screen.width*.5,app.screen.height*.5,64*mobileContentScale));
+        d.targetX=target.x;d.targetY=target.y;d.timer=260+Math.random()*300;
+        d.cruiseSpeed=.34+Math.random()*.18;
+      }
+      if(d.mode==='swim'){
+        const tx=d.targetX-d.view.x,ty=d.targetY-d.view.y,length=Math.max(1,Math.hypot(tx,ty));
+        d.velocityX+=(tx/length*d.cruiseSpeed*creatureTravelScale()-d.velocityX)*.026*delta;
+        d.velocityY+=(ty/length*d.cruiseSpeed*creatureTravelScale()-d.velocityY)*.026*delta;
+        d.view.x+=d.velocityX*delta;d.view.y+=d.velocityY*delta;
+        d.facing=d.velocityX>=0?1:-1;
+        // A real swimming duck's feet remain underwater. Keep the visible
+        // body stable and express each alternating paddle stroke in the water.
+        d.view.texture=d.frames[0];
+        d.view.rotation=Math.max(-.08,Math.min(.08,d.velocityY*.12));
+        if(d.wakeTimer<=0){addRipple(d.view.x-d.facing*d.wakeOffset,d.view.y+8*mobileContentScale,.22,{intensity:.035});d.wakeTimer=34;}
+        if(d.paddleTimer<=0){
+          addRipple(d.view.x+d.facing*d.wakeOffset*.18,d.view.y+(7+d.paddleSide*5)*mobileContentScale,.15,{intensity:.025});
+          d.paddleSide*=-1;d.paddleTimer=38+Math.random()*14;
+        }
+      }
+    }else{
+      d.actionClock=(d.actionClock||0)+delta;
+      const sequenceStart=d.mode==='stretch'?6:0;
+      const actionFrame=Math.min(5,Math.floor(d.actionClock/5));
+      d.view.texture=d.frames[sequenceStart+actionFrame];
+      if(d.actionClock>=30){d.mode='swim';d.timer=20;d.view.texture=d.frames[0];}
+    }
+    const safe=constrainToPond(d.view.x,d.view.y,58*mobileContentScale);d.view.position.set(safe.x,safe.y);
+    const bob=Math.sin(now*.0025+d.phase)*.006;
+    d.view.scale.set(Math.abs(d.baseScaleX)*d.facing,d.baseScaleY*(1+bob));
+  });
+  if(creatureVisibility.songbirds&&currentTimeOfDay==='morning')songbirds.forEach(b=>{
+    if(focusedCreature?.view===b.view||returningCreature?.view===b.view)return;
+    b.timer-=delta;
+    const breathe=Math.sin(now*.0018+b.phase);
+    if(b.mode==='rest'){
+      b.view.texture=b.frames[Math.sin(now*.00043+b.phase)>.82?1:0];
+      b.view.position.set(b.homeX,b.homeY+breathe*1.15*mobileContentScale);
+      b.view.rotation=0;
+      if(b.timer<=0){
+        b.mode='crouch';b.progress=0;b.timer=18;
+        b.perch=(b.perch+1+Math.floor(Math.random()*(b.perches.length-1)))%b.perches.length;
+        b.fromX=b.homeX;b.fromY=b.homeY;b.toX=b.perches[b.perch].x;b.toY=b.perches[b.perch].y;
+        b.facing=b.toX>=b.fromX?1:-1;b.view.texture=b.frames[2];
+      }
+    }else if(b.mode==='crouch'){
+      b.view.texture=b.frames[2];
+      if(b.timer<=0){b.mode='hop';b.progress=0;b.view.texture=b.frames[3];}
+    }else{
+      b.progress=Math.min(1,b.progress+delta/b.duration);b.flapClock+=delta;
+      const p=smoothstep(0,1,b.progress),flapPhase=Math.floor(b.flapClock/4)%2;
+      const arc=Math.sin(p*Math.PI)*34*mobileContentScale;
+      // Alternate dedicated upstroke and downstroke flight artwork.
+      // A small lift pulse on every downstroke keeps the trajectory powered
+      // instead of looking like a fixed-wing glide between perches.
+      const poweredLift=(flapPhase?1:0)*3.2*mobileContentScale*Math.sin(p*Math.PI);
+      b.view.position.set(b.fromX+(b.toX-b.fromX)*p,b.fromY+(b.toY-b.fromY)*p-arc-poweredLift);
+      b.view.texture=b.progress>.90?b.frames[2]:(flapPhase?b.frames[4]:b.frames[3]);
+      b.view.rotation=(b.toX-b.fromX)*-.00045*Math.sin(p*Math.PI);
+      if(b.progress>=1){b.mode='rest';b.homeX=b.toX;b.homeY=b.toY;b.timer=240+Math.random()*360;b.flapClock=0;b.view.texture=b.frames[0];b.view.rotation=0;}
+    }
+    b.view.scale.set(Math.abs(b.baseScaleX)*b.facing,b.baseScaleY*(1-breathe*.006));
   });
   if(creatureVisibility.rabbits)rabbits.forEach(r=>{
     if(focusedCreature?.view===r.view||returningCreature?.view===r.view)return;

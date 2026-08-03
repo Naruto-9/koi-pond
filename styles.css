@@ -203,7 +203,25 @@ body.pond-ready #pond { opacity: 1; }
 .menu-button { display:none; align-content:center; gap:3px; background:rgba(6,30,31,.46); border-color:rgba(255,255,255,.16); color:#fffaf0; backdrop-filter:blur(14px); }
 .menu-button span { width:13px; height:1px; background:currentColor; transition:transform .22s ease,opacity .22s ease; }
 .menu-button:hover, .menu-button:active, body.controls-open .menu-button { background:rgba(6,30,31,.46); border-color:rgba(255,255,255,.16); color:#fffaf0; backdrop-filter:blur(14px); }
-.mobile-panel-tools { display:none; transition:opacity .24s ease,visibility .24s; }
+.mobile-panel-tools {
+  position:fixed;
+  z-index:41;
+  top:59px;
+  right:22px;
+  display:flex;
+  gap:5px;
+  pointer-events:auto;
+  transition:opacity .24s ease,visibility .24s;
+}
+.mobile-panel-button { width:31px; height:31px; background:rgba(6,30,31,.62); transition:top .2s ease,background .18s ease,color .18s ease; }
+.mobile-panel-button svg { width:15px; }
+.mobile-panel-button[aria-expanded="true"] { background:var(--cream); color:#0c2828; }
+#foodPanelButton { display:none; }
+#diagnosticsPanelButton {
+  position:fixed;
+  top: 162px;
+  right: 27px;
+}
 
 main { position: relative; z-index: 2; height: 100%; pointer-events: none; }
 .hero { position: absolute; right: 28px; bottom: 25px; max-width: 285px; text-align: right; }
@@ -354,17 +372,13 @@ body.is-raining .pond-watcher .frame-6 { transform:translateY(0); }
 @media (max-width: 700px) {
   .masthead { top: 14px; left: 14px; right: 14px; }
   .mobile-panel-tools {
-    position:fixed;
-    z-index:41;
-    top:59px;
     right:14px;
-    display:flex;
-    gap:5px;
-    pointer-events:auto;
   }
-  .mobile-panel-button { width:31px; height:31px; background:rgba(6,30,31,.62); }
-  .mobile-panel-button svg { width:15px; }
-  .mobile-panel-button[aria-expanded="true"] { background:var(--cream); color:#0c2828; }
+  #foodPanelButton { display:grid; }
+  #diagnosticsPanelButton {
+    position:static;
+    right:14px;
+  }
   .food-panel {
     position:fixed;
     z-index:40;
@@ -416,6 +430,16 @@ body.is-raining .pond-watcher .frame-6 { transform:translateY(0); }
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
+}
+body:not(.diagnostics-panel-open) .performance-diagnostics.is-visible {
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(-5px) scale(.985);
+}
+body.diagnostics-panel-open .performance-diagnostics.is-visible {
+  opacity:1;
+  visibility:visible;
+  transform:none;
 }
 .performance-diagnostics strong {
   display: block;
