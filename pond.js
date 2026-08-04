@@ -773,14 +773,13 @@ function timeOfDayFromDate(date=new Date()){
 }
 const initialTimeOfDay=document.documentElement.dataset.time||timeOfDayFromDate();
 let mobileContentScale=useMobilePond?.5:1;
-const CREATURE_SPEED_REFERENCE_WIDTH=1920;
 let creatureSpeedLevel=DEFAULT_CREATURE_SPEED_LEVEL;
 let creatureSpeedMultiplier=CREATURE_SPEED_LEVELS[creatureSpeedLevel].value;
 function creatureTravelScale(){
-  // Preserve the perceived traversal time of the current desktop design.
-  // A 390px-wide phone therefore travels at roughly 20% of desktop pixels
-  // per frame instead of crossing its smaller pond several times faster.
-  return Math.max(.18,Math.min(1.35,app.screen.width/CREATURE_SPEED_REFERENCE_WIDTH))*creatureSpeedMultiplier;
+  // Movement is expressed in pixels per frame and must not vary with the
+  // viewport. Wide routes naturally take longer than short routes; only the
+  // user-selected creature speed changes the pace.
+  return creatureSpeedMultiplier;
 }
 const [
   koiTextures,
@@ -1907,12 +1906,13 @@ function blendColor(from,to,amount){
 }
 function mulberry32(a){return()=>{let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
 
-function addFishWake(x,y,angle,intensity,force=false){
+function addFishWake(x,y,angle,intensity,force=false,profile='fish'){
   if(!waterMotionEnhanced&&!force)return;
   disturbWater(x,y,intensity*.12,7,angle+Math.PI);
   if(fishWakes.length>16)return;
-  const wake=fishWakePool.pop()||{view:new Graphics(),age:0,life:0,intensity:0,phase:0};
-  wake.age=0;wake.life=22+Math.random()*7;wake.intensity=intensity;wake.phase=Math.random()*Math.PI*2;
+  const wake=fishWakePool.pop()||{view:new Graphics(),age:0,life:0,intensity:0,phase:0,profile:'fish'};
+  wake.age=0;wake.life=profile==='duck'?82+Math.random()*14:22+Math.random()*7;
+  wake.intensity=intensity;wake.phase=Math.random()*Math.PI*2;wake.profile=profile;
   wake.view.clear();wake.view.visible=true;wake.view.position.set(x,y);wake.view.rotation=angle;
   surfaceLayer.addChild(wake.view);fishWakes.push(wake);
 }
@@ -1931,19 +1931,22 @@ function releasePellet(pellet){
 }
 function drawFishWake(w){
   const g=w.view,p=w.age/w.life,fade=Math.pow(1-p,1.7)*w.intensity;
-  const length=10+w.age*.42,width=2+w.age*.13,wobble=Math.sin(w.age*.13+w.phase)*.9;
+  const duckWake=w.profile==='duck';
+  const length=duckWake?18+w.age*1.22:10+w.age*.42;
+  const width=duckWake?3+w.age*.32:2+w.age*.13;
+  const wobble=Math.sin(w.age*(duckWake?.075:.13)+w.phase)*(duckWake?.45:.9);
   const dark=waveContrastEnabled?0x075448:0x173f3b,light=waveContrastEnabled?0x8dc8b5:0xb3c9bc;
   g.clear();
   // Two gently diverging shoulders follow the direction of travel; unlike an
   // impact ripple they never close into a circle.
   g.moveTo(-2,wobble).bezierCurveTo(-length*.28,-width*.18,-length*.62,-width*.72,-length,-width)
-    .stroke({width:1,color:dark,alpha:fade*.42});
+    .stroke({width:duckWake?1.1:1,color:dark,alpha:fade*(duckWake?.38:.42)});
   g.moveTo(-2,wobble).bezierCurveTo(-length*.28,width*.18,-length*.62,width*.72,-length,width)
-    .stroke({width:1,color:dark,alpha:fade*.42});
+    .stroke({width:duckWake?1.1:1,color:dark,alpha:fade*(duckWake?.38:.42)});
   g.moveTo(-5,wobble-.4).bezierCurveTo(-length*.3,-width*.11,-length*.62,-width*.52,-length*.9,-width*.72)
-    .stroke({width:.55,color:light,alpha:fade*.34});
+    .stroke({width:duckWake?.72:.55,color:light,alpha:fade*(duckWake?.5:.34)});
   g.moveTo(-5,wobble+.4).bezierCurveTo(-length*.3,width*.11,-length*.62,width*.52,-length*.9,width*.72)
-    .stroke({width:.55,color:light,alpha:fade*.34});
+    .stroke({width:duckWake?.72:.55,color:light,alpha:fade*(duckWake?.5:.34)});
 }
 
 function addRipple(x,y,start=2,options={}){
@@ -3340,7 +3343,7 @@ app.ticker.add(ticker=>{
         else limb.view.rotation=limb.side*(limb.rest+recovery*.5-power*.92-glide*.18);
       });
       // A frog's kick is a brief, decisive burst rather than a slow cruise.
-      const speed=(.32+power*2.35+glide*.52)*5*creatureTravelScale();
+      const speed=(.32+power*2.35+glide*.52)*2.6*creatureTravelScale();
       f.view.x+=Math.cos(f.heading)*speed*delta;f.view.y+=Math.sin(f.heading)*speed*delta;
       const distance=Math.hypot(tx-f.view.x,ty-f.view.y);
       const chasingFood=f.foodTarget&&f.targetPad===f.foodTarget;
@@ -3646,7 +3649,7 @@ app.ticker.add(ticker=>{
           const tailY=d.view.y-Math.sin(wakeAngle)*d.wakeOffset+8*mobileContentScale;
           // A duck leaves a long, faint displacement wake rather than an
           // impact ring. Keep it lighter than the small rain disturbances.
-          addFishWake(tailX,tailY,wakeAngle,.15,true);
+          addFishWake(tailX,tailY,wakeAngle,.18,true,'duck');
           d.wakeTimer=32;
         }
         if(d.paddleTimer<=0){
@@ -3679,6 +3682,10 @@ app.ticker.add(ticker=>{
         b.mode='crouch';b.progress=0;b.timer=18;
         b.perch=(b.perch+1+Math.floor(Math.random()*(b.perches.length-1)))%b.perches.length;
         b.fromX=b.homeX;b.fromY=b.homeY;b.toX=b.perches[b.perch].x;b.toY=b.perches[b.perch].y;
+        // Base flight time on route length so a wide desktop crossing does
+        // not complete in the same 68 frames as a short mobile hop.
+        const flightDistance=Math.hypot(b.toX-b.fromX,b.toY-b.fromY);
+        b.duration=Math.max(90,flightDistance/(12*creatureTravelScale()));
         b.facing=b.toX>=b.fromX?1:-1;b.view.texture=b.frames[2];
       }
     }else if(b.mode==='crouch'){

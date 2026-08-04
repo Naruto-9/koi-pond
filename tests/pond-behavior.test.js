@@ -10,7 +10,7 @@ import {
 
 test('slower creature movement is the default',()=>{
   assert.equal(CREATURE_SPEED_LEVELS[DEFAULT_CREATURE_SPEED_LEVEL].label,'SLOWER');
-  assert.equal(CREATURE_SPEED_LEVELS[DEFAULT_CREATURE_SPEED_LEVEL].value,.4);
+  assert.equal(CREATURE_SPEED_LEVELS[DEFAULT_CREATURE_SPEED_LEVEL].value,.32);
 });
 
 test('nearby lily pads use a direct hop',()=>{

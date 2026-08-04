@@ -1,8 +1,8 @@
 export const CREATURE_SPEED_LEVELS=Object.freeze([
-  Object.freeze({label:'SLOWER',value:.4}),
-  Object.freeze({label:'SLOW',value:.6}),
-  Object.freeze({label:'NORMAL',value:1}),
-  Object.freeze({label:'FAST',value:1.5})
+  Object.freeze({label:'SLOWER',value:.32}),
+  Object.freeze({label:'SLOW',value:.48}),
+  Object.freeze({label:'NORMAL',value:.72}),
+  Object.freeze({label:'FAST',value:1.05})
 ]);
 
 export const DEFAULT_CREATURE_SPEED_LEVEL=0;
