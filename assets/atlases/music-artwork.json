@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "pages": [
+    "music-artwork.webp"
+  ],
+  "frames": {
+    "The_Pond_s_Awakening-artwork.webp": {
+      "page": "music-artwork.webp",
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "The_Pond_at_Day_s_End-artwork.webp": {
+      "page": "music-artwork.webp",
+      "x": 1026,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "Koi_Beneath_the_Stone-artwork.webp": {
+      "page": "music-artwork.webp",
+      "x": 2052,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    }
+  }
+}
