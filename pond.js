@@ -13,6 +13,9 @@ import {
 } from './pond-behavior.js';
 import {bundledAssets,pondAssetFormat} from '@pond-asset-manifest';
 import koiInSunlightUrl from './assets/Koi_in_Sunlight.mp3';
+import pondAwakeningUrl from './assets/The_Pond_s_Awakening.mp3';
+import pondAtDaysEndUrl from './assets/The_Pond_at_Day_s_End.mp3';
+import koiBeneathTheStoneUrl from './assets/Koi_Beneath_the_Stone.mp3';
 import weightOfAmberUrl from './assets/The_Weight_of_Amber.mp3';
 import beneathTheGlassUrl from './assets/Beneath_the_Glass.mp3';
 import whereSilentColorsDrownUrl from './assets/Where_Silent_Colors_Drown.mp3';
@@ -637,12 +640,15 @@ let focusedCreature=null,returningCreature=null,lastCreatureClick=0;
 const focusVeil=new Graphics();focusLayer.addChild(focusVeil);
 let audioOn=true,userVolume=.78;
 const musicTracks=[
+  {title:"The Pond's Awakening",url:pondAwakeningUrl,artwork:pondAssetUrl('The_Pond_s_Awakening-artwork.png'),instrumental:true,period:'morning'},
+  {title:'Koi in Sunlight',url:koiInSunlightUrl,instrumental:true,period:'afternoon'},
+  {title:"The Pond at Day's End",url:pondAtDaysEndUrl,artwork:pondAssetUrl('The_Pond_at_Day_s_End-artwork.png'),instrumental:true,period:'evening'},
+  {title:'Koi Beneath the Stone',url:koiBeneathTheStoneUrl,artwork:pondAssetUrl('Koi_Beneath_the_Stone-artwork.png'),instrumental:true,period:'night'},
   {title:'The Weight of Amber',url:weightOfAmberUrl,artwork:pondAssetUrl('The_Weight_of_Amber-artwork.png'),instrumental:false},
   {title:'Beneath the Glass',url:beneathTheGlassUrl,artwork:pondAssetUrl('Beneath_the_Glass-artwork.png'),instrumental:false},
-  {title:'Where Silent Colors Drown',url:whereSilentColorsDrownUrl,artwork:pondAssetUrl('Where_Silent_Colors_Drown-artwork.png'),instrumental:false},
-  {title:'Koi in Sunlight',url:koiInSunlightUrl,instrumental:true}
+  {title:'Where Silent Colors Drown',url:whereSilentColorsDrownUrl,artwork:pondAssetUrl('Where_Silent_Colors_Drown-artwork.png'),instrumental:false}
 ];
-let currentTrackIndex=3,trackFilter='instrumental';
+let currentTrackIndex=0,trackFilter='instrumental';
 const gardenMusic=new Audio();
 gardenMusic.loop=false;
 gardenMusic.preload='none';
@@ -2491,9 +2497,9 @@ const visibleTrackIndexes=()=>musicTracks
   .filter(({track})=>trackFilter==='all'||(trackFilter==='instrumental'?track.instrumental:!track.instrumental))
   .map(({index})=>index);
 function syncPlaylistLoopMode(){
-  // A one-song view can use the media element's seamless native loop. Larger
-  // playlists advance on `ended`; skipMusicTrack wraps the final item to zero.
-  gardenMusic.loop=visibleTrackIndexes().length===1;
+  // Time-of-day instrumentals are ambient soundscapes and loop seamlessly.
+  // Vocal tracks retain normal playlist advancement when selected manually.
+  gardenMusic.loop=Boolean(musicTracks[currentTrackIndex]?.period)||visibleTrackIndexes().length===1;
 }
 function renderTrackList(){
   if(!trackList)return;
@@ -2515,6 +2521,7 @@ async function selectMusicTrack(index,{play=!gardenMusic.paused}={}){
   const wasPlaying=play||(!gardenMusic.paused&&audioOn);
   currentTrackIndex=index;
   const track=musicTracks[index];
+  syncPlaylistLoopMode();
   gardenMusic.src=track.url;gardenMusic.load();gardenMusic.volume=userVolume;
   updatePlaybackProgress();
   currentTrackName.textContent=track.title;
@@ -2714,6 +2721,10 @@ async function setTimeOfDay(time){
       pondWaterTextures[time]=texture;
     }
     currentTimeOfDay=time;pondWaterTexture=pondWaterTextures[time];
+    const periodTrackIndex=musicTracks.findIndex(track=>track.period===time);
+    if(periodTrackIndex>=0&&periodTrackIndex!==currentTrackIndex){
+      await selectMusicTrack(periodTrackIndex,{play:!gardenMusic.paused&&audioOn});
+    }else syncPlaylistLoopMode();
     applyCreatureVisibility();
     water.texture=pondWaterTexture;refractedWater.texture=pondWaterTexture;
     const sourceUrl=assetPath(pondBackgroundFiles[time]);
