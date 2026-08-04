@@ -1414,12 +1414,16 @@ function buildPondDecor(){
     butterflies.push({view,frames:butterflyFrames,baseScaleX,baseScaleY,phase:Math.random()*6,flapClock:Math.random()*24,targetX:target.x,targetY:target.y,velocityX:0,velocityY:0,timer:40+Math.random()*120});
   }
   const duckStart=constrainToPond(w*(useMobilePond?.58:.62),h*.48,64*mobileContentScale);
+  const duckWake=new Graphics();decorLayer.addChild(duckWake);
   const duck=new Sprite(duckFrames[0]);duck.anchor.set(.5,.72);
   const duckWidth=(useMobilePond?88:132)*mobileContentScale;
+  const wakeLength=duckWidth*.68,wakeWidth=duckWidth*.24;
+  const wakeFront=duckWidth*.27;
+  duckWake.alpha=0;
   duck.width=duckWidth;duck.height=duckWidth*(duckFrames[0].height/duckFrames[0].width);
   duck.position.set(duckStart.x,duckStart.y);duck.alpha=.96;decorLayer.addChild(duck);
   addInspectable(duck,'ducks','Mallard','WILD WATERFOWL','Male mallards are recognized by their glossy green heads, white neck rings and chestnut breasts. Their feet paddle beneath the surface while the body glides smoothly, with brief dabbling dips and feather-stretching displays.');
-  ducks.push({view:duck,frames:duckFrames,baseScaleX:duck.scale.x,baseScaleY:duck.scale.y,facing:1,mode:'swim',timer:180,forageTimer:240+Math.random()*180,stretchTimer:360+Math.random()*240,targetX:w*.72,targetY:h*.54,velocityX:.12,velocityY:0,cruiseSpeed:.38+Math.random()*.14,phase:Math.random()*6,wakeTimer:0,paddleTimer:18+Math.random()*25,paddleSide:Math.random()<.5?-1:1,wakeOffset:duckWidth*.28});
+  ducks.push({view:duck,wakeView:duckWake,wakeAlpha:0,wakeLength,wakeWidth,wakeFront,frames:duckFrames,baseScaleX:duck.scale.x,baseScaleY:duck.scale.y,facing:1,mode:'swim',timer:180,forageTimer:240+Math.random()*180,stretchTimer:360+Math.random()*240,targetX:w*.72,targetY:h*.54,velocityX:.12,velocityY:0,cruiseSpeed:.38+Math.random()*.14,phase:Math.random()*6,wakeTimer:0,paddleTimer:18+Math.random()*25,paddleSide:Math.random()<.5?-1:1,wakeOffset:duckWidth*.28});
   const rabbit=new Sprite(rabbitFrames[0]);rabbit.anchor.set(.5,.82);
   const rabbitScale=(useMobilePond?.30:.24)*mobileContentScale;
   // The rabbit can explore the full planted lower-right bank. The inner edge
@@ -1466,7 +1470,10 @@ function applyCreatureVisibility(){
   songbirds.forEach(v=>v.view.visible=creatureVisibility.songbirds&&morning);
   const afternoon=currentTimeOfDay==='afternoon';
   butterflies.forEach(v=>v.view.visible=creatureVisibility.butterflies&&afternoon);
-  ducks.forEach(v=>v.view.visible=creatureVisibility.ducks&&afternoon);
+  ducks.forEach(v=>{
+    v.view.visible=creatureVisibility.ducks&&afternoon;
+    v.wakeView.visible=v.view.visible&&v.wakeAlpha>.01;
+  });
   rabbits.forEach(v=>v.view.visible=creatureVisibility.rabbits&&!night);
   const sleepingOffscreen=(night&&['dragonflies','hummingbirds','rabbits'].includes(focusedCreature?.kind))||(!morning&&['bees','songbirds'].includes(focusedCreature?.kind))||(!afternoon&&['butterflies','ducks'].includes(focusedCreature?.kind));
   if(focusedCreature&&(!creatureVisibility[focusedCreature.kind]||sleepingOffscreen))clearCreatureFocus(false);
@@ -1909,7 +1916,8 @@ function mulberry32(a){return()=>{let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);
 function addFishWake(x,y,angle,intensity,force=false,profile='fish'){
   if(!waterMotionEnhanced&&!force)return;
   disturbWater(x,y,intensity*.12,7,angle+Math.PI);
-  if(fishWakes.length>16)return;
+  // Long duck wakes share the pool but must not be starved by active koi.
+  if(fishWakes.length>(profile==='duck'?23:16))return;
   const wake=fishWakePool.pop()||{view:new Graphics(),age:0,life:0,intensity:0,phase:0,profile:'fish'};
   wake.age=0;wake.life=profile==='duck'?82+Math.random()*14:22+Math.random()*7;
   wake.intensity=intensity;wake.phase=Math.random()*Math.PI*2;wake.profile=profile;
@@ -1935,18 +1943,49 @@ function drawFishWake(w){
   const length=duckWake?18+w.age*1.22:10+w.age*.42;
   const width=duckWake?3+w.age*.32:2+w.age*.13;
   const wobble=Math.sin(w.age*(duckWake?.075:.13)+w.phase)*(duckWake?.45:.9);
-  const dark=waveContrastEnabled?0x075448:0x173f3b,light=waveContrastEnabled?0x8dc8b5:0xb3c9bc;
+  const dark=waveContrastEnabled?0x075448:0x173f3b;
+  const light=duckWake?0xf4fbf8:(waveContrastEnabled?0x8dc8b5:0xb3c9bc);
   g.clear();
   // Two gently diverging shoulders follow the direction of travel; unlike an
   // impact ripple they never close into a circle.
   g.moveTo(-2,wobble).bezierCurveTo(-length*.28,-width*.18,-length*.62,-width*.72,-length,-width)
-    .stroke({width:duckWake?1.1:1,color:dark,alpha:fade*(duckWake?.38:.42)});
+    .stroke({width:duckWake?1.1:1,color:dark,alpha:fade*(duckWake?.18:.42)});
   g.moveTo(-2,wobble).bezierCurveTo(-length*.28,width*.18,-length*.62,width*.72,-length,width)
-    .stroke({width:duckWake?1.1:1,color:dark,alpha:fade*(duckWake?.38:.42)});
+    .stroke({width:duckWake?1.1:1,color:dark,alpha:fade*(duckWake?.18:.42)});
   g.moveTo(-5,wobble-.4).bezierCurveTo(-length*.3,-width*.11,-length*.62,-width*.52,-length*.9,-width*.72)
-    .stroke({width:duckWake?.72:.55,color:light,alpha:fade*(duckWake?.5:.34)});
+    .stroke({width:duckWake?1:.55,color:light,alpha:fade*(duckWake?.95:.34)});
   g.moveTo(-5,wobble+.4).bezierCurveTo(-length*.3,width*.11,-length*.62,width*.52,-length*.9,width*.72)
-    .stroke({width:duckWake?.72:.55,color:light,alpha:fade*(duckWake?.5:.34)});
+    .stroke({width:duckWake?1:.55,color:light,alpha:fade*(duckWake?.95:.34)});
+}
+
+function drawDuckWake(d,now){
+  const g=d.wakeView,L=d.wakeLength,W=d.wakeWidth,F=d.wakeFront;
+  const phase=now*.0028+d.phase;
+  const outer={width:1.05*mobileContentScale,color:0xf4fbf8,alpha:.58,cap:'round',join:'round'};
+  const middle={width:.86*mobileContentScale,color:0xf4fbf8,alpha:.47,cap:'round',join:'round'};
+  const inner={width:.72*mobileContentScale,color:0xf4fbf8,alpha:.38,cap:'round',join:'round'};
+  g.clear();
+
+  // Keep every crest in a separate lane. A traveling sine bends each lane,
+  // giving the wake visible water motion without allowing adjacent lines to
+  // cross as they spread away from the hull.
+  for(const side of [-1,1]){
+    const lanes=[
+      {spread:[.30,.44,.54,.64],start:.42,finish:.84,offset:.15,style:inner},
+      {spread:[.50,.66,.79,.90],start:.56,finish:.92,offset:.72,style:middle},
+      {spread:[.70,.88,1.06,1.18],start:.72,finish:1,offset:1.28,style:outer}
+    ];
+    lanes.forEach(lane=>{
+      const bend=(step)=>Math.sin(phase*1.18+step*1.72+lane.offset+side*.38)*W*.06;
+      const ys=lane.spread.map((spread,i)=>side*W*spread+bend(i));
+      const x0=F*lane.start,x1=-L*.25,x2=-L*.56,x3=-L*lane.finish;
+      g.moveTo(x0,ys[0])
+        .bezierCurveTo(x0-F*.20,ys[0]+bend(.48),x1+L*.10,ys[1]-bend(.72),x1,ys[1])
+        .bezierCurveTo(x1-L*.10,ys[1]+bend(1.42),x2+L*.10,ys[2]-bend(1.70),x2,ys[2])
+        .bezierCurveTo(x2-L*.10,ys[2]+bend(2.45),x3+L*.08,ys[3]-bend(2.72),x3,ys[3])
+        .stroke(lane.style);
+    });
+  }
 }
 
 function addRipple(x,y,start=2,options={}){
@@ -3612,7 +3651,7 @@ app.ticker.add(ticker=>{
     b.view.rotation=Math.max(-.25,Math.min(.25,b.velocityY*.12));
   });
   if(creatureVisibility.ducks&&currentTimeOfDay==='afternoon')ducks.forEach(d=>{
-    if(focusedCreature?.view===d.view||returningCreature?.view===d.view)return;
+    if(focusedCreature?.view===d.view||returningCreature?.view===d.view){d.wakeView.visible=false;return;}
     d.timer-=delta;d.forageTimer-=delta;d.stretchTimer-=delta;d.wakeTimer-=delta;d.paddleTimer-=delta;
     if(d.mode==='swim'){
       if(d.stretchTimer<=0){
@@ -3643,15 +3682,11 @@ app.ticker.add(ticker=>{
         // body stable and express each alternating paddle stroke in the water.
         d.view.texture=d.frames[0];
         d.view.rotation=Math.max(-.08,Math.min(.08,d.velocityY*.12));
-        if(d.wakeTimer<=0){
-          const wakeAngle=Math.atan2(d.velocityY,d.velocityX);
-          const tailX=d.view.x-Math.cos(wakeAngle)*d.wakeOffset;
-          const tailY=d.view.y-Math.sin(wakeAngle)*d.wakeOffset+8*mobileContentScale;
-          // A duck leaves a long, faint displacement wake rather than an
-          // impact ring. Keep it lighter than the small rain disturbances.
-          addFishWake(tailX,tailY,wakeAngle,.18,true,'duck');
-          d.wakeTimer=32;
-        }
+        // Match the wake to the orientation actually shown on screen. The
+        // sprite faces right in source art and flips through negative scale.
+        const wakeAngle=d.view.rotation+(d.facing<0?Math.PI:0);
+        d.wakeView.position.set(d.view.x,d.view.y+8*mobileContentScale);
+        d.wakeView.rotation=wakeAngle;
         if(d.paddleTimer<=0){
           const paddleX=d.view.x+d.facing*d.wakeOffset*.14;
           const paddleY=d.view.y+(7+d.paddleSide*5)*mobileContentScale;
@@ -3666,7 +3701,15 @@ app.ticker.add(ticker=>{
       d.view.texture=d.frames[sequenceStart+actionFrame];
       if(d.actionClock>=30){d.mode='swim';d.timer=20;d.view.texture=d.frames[0];}
     }
+    const wakeSpeed=Math.hypot(d.velocityX,d.velocityY);
+    const wakeTarget=d.mode==='swim'&&wakeSpeed>.025?Math.min(.72,.34+wakeSpeed*.9):0;
+    d.wakeAlpha+=(wakeTarget-d.wakeAlpha)*.08*delta;
+    d.wakeView.alpha=d.wakeAlpha;d.wakeView.visible=d.wakeAlpha>.01;
     const safe=constrainToPond(d.view.x,d.view.y,58*mobileContentScale);d.view.position.set(safe.x,safe.y);
+    if(d.wakeView.visible){
+      d.wakeView.position.set(d.view.x,d.view.y+8*mobileContentScale);
+      drawDuckWake(d,now);
+    }
     const bob=Math.sin(now*.0025+d.phase)*.006;
     d.view.scale.set(Math.abs(d.baseScaleX)*d.facing,d.baseScaleY*(1+bob));
   });
