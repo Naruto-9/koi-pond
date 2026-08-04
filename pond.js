@@ -803,7 +803,8 @@ let hummingbirdTexture=null;
 let honeybeeTexture=null;
 let songbirdTexture=null;
 let butterflyTexture=null;
-let duckTexture=null;
+let duckDipTexture=null;
+let duckStretchTexture=null;
 let rabbitSheetTexture=null;
 let bankPlantTextures=[];
 let rabbitFrames=[];
@@ -944,13 +945,14 @@ async function loadDecorativeAssets(){
     loadPondAsset('honeybee.webp'),
     loadPondAsset('olive-backed-sunbird.webp'),
     loadPondAsset('monarch-butterfly-sheet.webp'),
-    loadPondAsset('mallard-duck-actions-sheet.webp'),
+    loadPondAsset('mallard-duck-dip-sheet.webp'),
+    loadPondAsset('mallard-duck-stretch-sheet.webp'),
     loadPondAsset('rabbit-sheet-clean.png'),
     Promise.all(['cardinal-flower.png','canna-lily.png','water-iris.png','red-salvia.png'].map(loadPondAsset))
   ]).then(async textures=>{
     [
       frogTexture,turtleTexture,lotusFlowerTexture,lotusLeafTexture,
-      pebbleTextures,dragonflyTexture,fireflyTexture,hummingbirdTexture,honeybeeTexture,songbirdTexture,butterflyTexture,duckTexture,rabbitSheetTexture,bankPlantTextures
+      pebbleTextures,dragonflyTexture,fireflyTexture,hummingbirdTexture,honeybeeTexture,songbirdTexture,butterflyTexture,duckDipTexture,duckStretchTexture,rabbitSheetTexture,bankPlantTextures
     ]=textures;
     frogSwimTextures=Array(8).fill(frogTexture);
     rabbitFrames=makeRabbitFrames();
@@ -1080,17 +1082,15 @@ function makeButterflyFrames(){
 }
 
 function makeDuckFrames(){
-  const source=duckTexture.source,img=source.resource,cellW=source.width/6,cellH=source.height/2;
-  const cropH=cellH*.76;
-  return Array.from({length:12},(_,index)=>{
-    // Inset each source cell so the generated layout guides never enter a frame.
-    const column=index%6,row=Math.floor(index/6),inset=4,pad=3,drawW=cellW-inset*2;
-    // Keep both animation rows on the same painted waterline. A different crop
-    // origin for the stretch row makes the body jump when texture 11 returns to 0.
-    const cropY=row*cellH+cellH*.10,c=document.createElement('canvas');
-    c.width=Math.ceil(drawW)+pad*2;c.height=Math.ceil(cropH)+pad*2;
-    c.getContext('2d').drawImage(img,column*cellW+inset,cropY,drawW,cropH,pad,pad,drawW,cropH);
-    return Texture.from(c);
+  return [duckDipTexture,duckStretchTexture].flatMap(texture=>{
+    const source=texture.source,img=source.resource,cellW=source.width/3,cellH=source.height/2;
+    const inset=4,pad=3,drawW=cellW-inset*2,drawH=cellH-inset*2;
+    return Array.from({length:6},(_,index)=>{
+      const column=index%3,row=Math.floor(index/3),c=document.createElement('canvas');
+      c.width=Math.ceil(drawW)+pad*2;c.height=Math.ceil(drawH)+pad*2;
+      c.getContext('2d').drawImage(img,column*cellW+inset,row*cellH+inset,drawW,drawH,pad,pad,drawW,drawH);
+      return Texture.from(c);
+    });
   });
 }
 
@@ -1907,8 +1907,8 @@ function blendColor(from,to,amount){
 }
 function mulberry32(a){return()=>{let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
 
-function addFishWake(x,y,angle,intensity){
-  if(!waterMotionEnhanced)return;
+function addFishWake(x,y,angle,intensity,force=false){
+  if(!waterMotionEnhanced&&!force)return;
   disturbWater(x,y,intensity*.12,7,angle+Math.PI);
   if(fishWakes.length>16)return;
   const wake=fishWakePool.pop()||{view:new Graphics(),age:0,life:0,intensity:0,phase:0};
@@ -3640,10 +3640,17 @@ app.ticker.add(ticker=>{
         // body stable and express each alternating paddle stroke in the water.
         d.view.texture=d.frames[0];
         d.view.rotation=Math.max(-.08,Math.min(.08,d.velocityY*.12));
-        if(d.wakeTimer<=0){addRipple(d.view.x-d.facing*d.wakeOffset,d.view.y+8*mobileContentScale,.22,{intensity:.035});d.wakeTimer=34;}
+        if(d.wakeTimer<=0){
+          const wakeAngle=Math.atan2(d.velocityY,d.velocityX);
+          const tailX=d.view.x-Math.cos(wakeAngle)*d.wakeOffset;
+          const tailY=d.view.y-Math.sin(wakeAngle)*d.wakeOffset+8*mobileContentScale;
+          addFishWake(tailX,tailY,wakeAngle,.3,true);
+          addRipple(tailX,tailY,.28,{intensity:.07});
+          d.wakeTimer=24;
+        }
         if(d.paddleTimer<=0){
-          addRipple(d.view.x+d.facing*d.wakeOffset*.18,d.view.y+(7+d.paddleSide*5)*mobileContentScale,.15,{intensity:.025});
-          d.paddleSide*=-1;d.paddleTimer=38+Math.random()*14;
+          addRipple(d.view.x+d.facing*d.wakeOffset*.14,d.view.y+(7+d.paddleSide*5)*mobileContentScale,.18,{intensity:.045});
+          d.paddleSide*=-1;d.paddleTimer=32+Math.random()*12;
         }
       }
     }else{

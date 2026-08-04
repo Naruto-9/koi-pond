@@ -1,7 +1,7 @@
 import generatedAssets from './build-assets/manifest.js';
 
 const morningCreatureAssets=import.meta.glob(
-  './assets/{honeybee,olive-backed-sunbird,hummingbird-side-sheet,monarch-butterfly-sheet,mallard-duck-actions-sheet}.webp',
+  './assets/{honeybee,olive-backed-sunbird,hummingbird-side-sheet,monarch-butterfly-sheet,mallard-duck-dip-sheet,mallard-duck-stretch-sheet}.webp',
   {eager:true,query:'?url',import:'default'}
 );
 
