@@ -3588,7 +3588,7 @@ app.ticker.add(ticker=>{
     // Hummingbirds continue powered wingbeats both in transit and while
     // feeding. Holding a dedicated feeding silhouette makes the bird appear
     // perched in mid-air, so flower visits use the same complete flap cycle.
-    const flapInterval=b.mode==='dart'?1.65:feeding?2.15:2.5;
+    const flapInterval=b.mode==='dart'?2.8:feeding?3.5:4;
     b.view.texture=b.frames[Math.floor(b.flapClock/flapInterval)%3];
     if(motion>.08)b.facing=b.velocityX>=0?1:-1;
     else if(feeding)b.facing=b.flowerX>=b.view.x?1:-1;
@@ -3632,7 +3632,7 @@ app.ticker.add(ticker=>{
     // of travel and hovering. Every pose has the same duration.
     b.flapClock+=delta;
     const flapCycle=[0,1,2,3,4,3,2,1];
-    b.view.texture=b.frames[flapCycle[Math.floor(b.flapClock/2.2)%flapCycle.length]];
+    b.view.texture=b.frames[flapCycle[Math.floor(b.flapClock/4.5)%flapCycle.length]];
     b.timer-=delta;
     if(b.timer<=0||Math.hypot(b.targetX-b.view.x,b.targetY-b.view.y)<14){
       const flower=nectarTargets[Math.floor(Math.random()*nectarTargets.length)]||{x:app.screen.width*.25,y:app.screen.height*.3};
