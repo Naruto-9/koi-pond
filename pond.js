@@ -1476,12 +1476,13 @@ function applyCreatureVisibility(){
   songbirds.forEach(v=>v.view.visible=creatureVisibility.songbirds&&morning);
   const afternoon=currentTimeOfDay==='afternoon';
   butterflies.forEach(v=>v.view.visible=creatureVisibility.butterflies&&afternoon);
+  const duckActive=!night;
   ducks.forEach(v=>{
-    v.view.visible=creatureVisibility.ducks&&afternoon;
+    v.view.visible=creatureVisibility.ducks&&duckActive;
     v.wakeView.visible=v.view.visible&&v.wakeAlpha>.01;
   });
   rabbits.forEach(v=>v.view.visible=creatureVisibility.rabbits&&!night);
-  const sleepingOffscreen=(night&&['dragonflies','hummingbirds','rabbits'].includes(focusedCreature?.kind))||(!morning&&['bees','songbirds'].includes(focusedCreature?.kind))||(!afternoon&&['butterflies','ducks'].includes(focusedCreature?.kind));
+  const sleepingOffscreen=(night&&['dragonflies','hummingbirds','rabbits','ducks'].includes(focusedCreature?.kind))||(!morning&&['bees','songbirds'].includes(focusedCreature?.kind))||(!afternoon&&focusedCreature?.kind==='butterflies');
   if(focusedCreature&&(!creatureVisibility[focusedCreature.kind]||sleepingOffscreen))clearCreatureFocus(false);
 }
 
@@ -3661,7 +3662,7 @@ app.ticker.add(ticker=>{
     const facing=b.velocityX>=0?1:-1;b.view.scale.set(Math.abs(b.baseScaleX)*facing,b.baseScaleY);
     b.view.rotation=Math.max(-.25,Math.min(.25,b.velocityY*.12));
   });
-  if(creatureVisibility.ducks&&currentTimeOfDay==='afternoon')ducks.forEach(d=>{
+  if(creatureVisibility.ducks&&currentTimeOfDay!=='night')ducks.forEach(d=>{
     if(focusedCreature?.view===d.view||returningCreature?.view===d.view){d.wakeView.visible=false;return;}
     d.timer-=delta;d.forageTimer-=delta;d.stretchTimer-=delta;d.wakeTimer-=delta;d.paddleTimer-=delta;
     if(d.mode==='swim'){
