@@ -3644,12 +3644,15 @@ app.ticker.add(ticker=>{
           const wakeAngle=Math.atan2(d.velocityY,d.velocityX);
           const tailX=d.view.x-Math.cos(wakeAngle)*d.wakeOffset;
           const tailY=d.view.y-Math.sin(wakeAngle)*d.wakeOffset+8*mobileContentScale;
-          addFishWake(tailX,tailY,wakeAngle,.3,true);
-          addRipple(tailX,tailY,.28,{intensity:.07});
-          d.wakeTimer=24;
+          // A duck leaves a long, faint displacement wake rather than an
+          // impact ring. Keep it lighter than the small rain disturbances.
+          addFishWake(tailX,tailY,wakeAngle,.15,true);
+          d.wakeTimer=32;
         }
         if(d.paddleTimer<=0){
-          addRipple(d.view.x+d.facing*d.wakeOffset*.14,d.view.y+(7+d.paddleSide*5)*mobileContentScale,.18,{intensity:.045});
+          const paddleX=d.view.x+d.facing*d.wakeOffset*.14;
+          const paddleY=d.view.y+(7+d.paddleSide*5)*mobileContentScale;
+          disturbWater(paddleX,paddleY,-.035,6,Math.atan2(d.velocityY,d.velocityX)+Math.PI);
           d.paddleSide*=-1;d.paddleTimer=32+Math.random()*12;
         }
       }
